@@ -1,0 +1,41 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/><title>Registro de Producto - Enlatados MG</title>
+<style>* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; } body { background: #f5f6fa; } .header { background: #1a237e; color: white; padding: 16px 28px; display: flex; justify-content: space-between; align-items: center; } .header a { color: white; text-decoration: none; font-size: 14px; } .contenido { max-width: 900px; margin: 30px auto; padding: 0 20px; } .card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 24px; } .card h3 { color: #1a237e; margin-bottom: 18px; font-size: 16px; border-bottom: 2px solid #e8eaf6; padding-bottom: 10px; } .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; } .campo label { display: block; font-size: 13px; font-weight: 600; color: #555; margin-bottom: 6px; } .campo input { width: 100%; padding: 11px 13px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; outline: none; } .campo input:focus { border-color: #1a237e; } .full { grid-column: 1/-1; } .btn { padding: 12px 20px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 14px; margin-top: 14px; background: #1a237e; color: white; } .alerta { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-top: 12px; display: none; } .alerta.ok { background: #e8f5e9; color: #2e7d32; } .alerta.err { background: #ffebee; color: #c62828; } table { width: 100%; border-collapse: collapse; font-size: 13px; } th { background: #e8eaf6; color: #1a237e; padding: 10px 12px; text-align: left; } td { padding: 9px 12px; border-bottom: 1px solid #f0f0f0; } .badge-stock { display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:#e8f5e9;color:#2e7d32; }</style>
+</head><body>
+<div class="header"><h1>🗂 Catalogo de Productos</h1><a href="/menu.html">← Volver al menu</a></div>
+<div class="contenido">
+  <div class="card"><h3>Registrar Nuevo Producto</h3>
+    <div class="grid">
+      <div class="campo"><label>Codigo del Producto</label><input type="text" id="codigo" placeholder="Ej: PROD-001"/></div>
+      <div class="campo"><label>Nombre del Producto</label><input type="text" id="nombre" placeholder="Ej: Atun en aceite de oliva"/></div>
+      <div class="campo full"><label>Descripcion</label><input type="text" id="descripcion" placeholder="Breve descripcion del contenido"/></div>
+      <div class="campo"><label>Peso por Caja (kg)</label><input type="number" id="peso" placeholder="Ej: 12.5" step="0.1"/></div>
+      <div class="campo"><label>Unidades por Caja</label><input type="number" id="unidades" placeholder="Ej: 24" min="1"/></div>
+      <div class="campo full"><label>Precio por Caja (Q)</label><input type="number" id="precio" placeholder="Ej: 150.00" step="0.01" min="0"/></div>
+    </div>
+    <button class="btn" onclick="guardar()">Registrar Producto</button>
+    <div class="alerta" id="alerta"></div>
+  </div>
+  <div class="card"><h3>Catalogo de Productos</h3>
+    <table><thead><tr><th>Codigo</th><th>Nombre</th><th>Descripcion</th><th>Peso/Caja</th><th>Unidades/Caja</th><th>Precio/Caja</th><th>Stock</th></tr></thead>
+    <tbody id="tabla"><tr><td colspan="7" style="text-align:center;color:#999;padding:20px">Cargando...</td></tr></tbody></table>
+  </div>
+</div>
+<script>
+async function cargar() {
+  const res=await fetch('/api/catalogo'); const data=await res.json();
+  const tbody=document.getElementById('tabla');
+  if (!data.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:#999;padding:20px">No hay productos registrados</td></tr>';return;}
+  tbody.innerHTML=data.map(p=>`<tr><td><strong>${p.codigoProducto}</strong></td><td>${p.nombreProducto}</td><td>${p.descripcion||'-'}</td><td>${p.pesoKgPorCaja} kg</td><td>${p.unidadesPorCaja}</td><td><strong>Q ${p.precioUnitario?.toFixed(2)||'0.00'}</strong></td><td><span class="badge-stock">${p.cajasEnStock} cajas</span></td></tr>`).join('');
+}
+async function guardar() {
+  const body={codigoProducto:document.getElementById('codigo').value.trim(),nombreProducto:document.getElementById('nombre').value.trim(),
+    descripcion:document.getElementById('descripcion').value.trim(),pesoKgPorCaja:document.getElementById('peso').value,
+    unidadesPorCaja:document.getElementById('unidades').value,precioUnitario:document.getElementById('precio').value};
+  if(!body.codigoProducto||!body.nombreProducto){mostrarAlerta('err','Codigo y Nombre son obligatorios');return;}
+  const res=await fetch('/api/catalogo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(res.ok){mostrarAlerta('ok','Producto registrado exitosamente');cargar();}
+  else{const err=await res.text();mostrarAlerta('err',err);}
+}
+function mostrarAlerta(t,m){const el=document.getElementById('alerta');el.className=`alerta ${t}`;el.textContent=m;el.style.display='block';setTimeout(()=>el.style.display='none',4000);}
+cargar();
+</script></body></html>

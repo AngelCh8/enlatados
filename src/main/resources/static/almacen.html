@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<title>Ingreso de Cajas - Enlatados MG</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',sans-serif}
+body{background:#f5f6fa}
+.header{background:#1a237e;color:white;padding:16px 28px;display:flex;justify-content:space-between;align-items:center}
+.header a{color:white;text-decoration:none;font-size:14px}
+.contenido{max-width:1000px;margin:30px auto;padding:0 20px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px}
+.stat{background:white;border-radius:10px;padding:16px 20px;box-shadow:0 2px 10px rgba(0,0,0,0.07);text-align:center}
+.stat .num{font-size:28px;font-weight:800;color:#1a237e}
+.stat .lbl{font-size:12px;color:#888;margin-top:4px}
+.card{background:white;border-radius:12px;padding:24px;box-shadow:0 2px 12px rgba(0,0,0,0.08);margin-bottom:24px}
+.card h3{color:#1a237e;margin-bottom:18px;font-size:16px;border-bottom:2px solid #e8eaf6;padding-bottom:10px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px}
+.campo label{display:block;font-size:13px;font-weight:600;color:#555;margin-bottom:6px}
+.campo input{width:100%;padding:11px 13px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;outline:none;transition:border-color .2s;background:white}
+.campo input:focus{border-color:#1a237e}
+.campo input[readonly]{background:#f0f4ff;color:#1a237e;font-weight:700}
+.sep{grid-column:1/-1;font-size:12px;font-weight:700;color:#1a237e;text-transform:uppercase;letter-spacing:1px;padding:6px 0 2px;border-bottom:1px solid #e8eaf6}
+.hint{grid-column:1/-1;font-size:12px;color:#666;background:#fffde7;border-radius:8px;padding:10px 14px;border-left:3px solid #f9a825}
+.full{grid-column:1/-1}
+.btn{padding:12px 24px;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:14px;background:#1a237e;color:white;margin-top:14px;transition:background .2s}
+.btn:hover{background:#283593}
+.alerta{padding:10px 14px;border-radius:8px;font-size:13px;margin-top:12px;display:none}
+.alerta.ok{background:#e8f5e9;color:#2e7d32}
+.alerta.err{background:#ffebee;color:#c62828}
+/* Autocomplete */
+.autocomplete-wrap{position:relative}
+.autocomplete-list{position:absolute;top:100%;left:0;right:0;background:white;border:2px solid #1a237e;border-top:none;border-radius:0 0 8px 8px;z-index:50;max-height:200px;overflow-y:auto;display:none}
+.autocomplete-list div{padding:10px 13px;cursor:pointer;font-size:13px;border-bottom:1px solid #f0f0f0}
+.autocomplete-list div:hover{background:#e8eaf6}
+.autocomplete-list div strong{color:#1a237e}
+/* Table */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#e8eaf6;color:#1a237e;padding:10px 12px;text-align:left}
+td{padding:9px 12px;border-bottom:1px solid #f0f0f0}
+.badge{display:inline-block;padding:2px 10px;border-radius:12px;background:#e8eaf6;color:#1a237e;font-size:11px;font-weight:700}
+.DISPONIBLE{color:#2e7d32;font-weight:700}
+.AGOTADO{color:#c62828;font-weight:700}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>📦 Ingreso de Cajas al Almacen</h1>
+  <div style="display:flex;gap:20px;align-items:center">
+    <a href="/registro-producto.html" style="background:rgba(255,255,255,0.2);padding:8px 14px;border-radius:8px;font-size:13px">+ Nuevo Producto</a>
+    <a href="/menu.html">← Volver al menu</a>
+  </div>
+</div>
+<div class="contenido">
+  <div class="stats">
+    <div class="stat"><div class="num" id="tProductos">0</div><div class="lbl">Productos en catalogo</div></div>
+    <div class="stat"><div class="num" id="tLotes" style="color:#2e7d32">0</div><div class="lbl">Lotes en almacen</div></div>
+    <div class="stat"><div class="num" id="tCajas" style="color:#f57f17">0</div><div class="lbl">Total cajas disponibles</div></div>
+  </div>
+
+  <div class="card">
+    <h3>Ingresar Cajas al Almacen</h3>
+    <div class="grid2">
+      <div class="hint">
+        Escribe el <strong>codigo o nombre del producto</strong> para buscarlo. El sistema autocompletara
+        basado en el catalogo. El <strong>codigo de lote se genera automaticamente</strong>.
+        Si ya hay cajas del mismo producto en la misma ubicacion, la cantidad se <strong>sumara</strong>.
+      </div>
+      <div class="sep">Producto</div>
+      <div class="campo autocomplete-wrap">
+        <label>Buscar Producto (codigo o nombre) <span style="color:#c62828">*</span></label>
+        <input type="text" id="buscarProducto" placeholder="Ej: PROD-001 o Atun..." autocomplete="off" oninput="buscarProductos()"/>
+        <div class="autocomplete-list" id="acLista"></div>
+      </div>
+      <div class="campo">
+        <label>Producto Seleccionado</label>
+        <input type="text" id="productoSeleccionado" readonly placeholder="(se llena al seleccionar)"/>
+        <input type="hidden" id="codigoProducto"/>
+      </div>
+      <div class="campo">
+        <label>Codigo de Lote (automatico)</label>
+        <input type="text" id="codigoCaja" readonly placeholder="Se genera automaticamente"/>
+      </div>
+      <div class="campo">
+        <label>Cantidad de Cajas <span style="color:#c62828">*</span></label>
+        <input type="number" id="cantidadCajas" placeholder="Ej: 500" min="1"/>
+      </div>
+      <div class="sep">Ubicacion en el Almacen</div>
+      <div class="campo">
+        <label>Zona (letra)</label>
+        <input type="text" id="zona" placeholder="A" maxlength="2"/>
+      </div>
+      <div class="campo">
+        <label>Pasillo</label>
+        <input type="number" id="pasillo" placeholder="2" min="1"/>
+      </div>
+      <div class="campo">
+        <label>Estante</label>
+        <input type="number" id="estante" placeholder="5" min="1"/>
+      </div>
+      <div class="campo">
+        <label>Nivel</label>
+        <input type="number" id="nivel" placeholder="3" min="1"/>
+      </div>
+    </div>
+    <button class="btn" onclick="ingresarCajas()">Ingresar Cajas al Almacen</button>
+    <div class="alerta" id="alerta"></div>
+  </div>
+
+  <div class="card">
+    <h3>Inventario Actual — Lotes en Almacen</h3>
+    <table>
+      <thead>
+        <tr><th>Lote</th><th>Cod. Producto</th><th>Producto</th><th>Cajas</th><th>Peso/Caja</th><th>Ubicacion</th><th>Fecha Ingreso</th><th>Estado</th></tr>
+      </thead>
+      <tbody id="tabla">
+        <tr><td colspan="8" style="text-align:center;color:#999;padding:20px">Cargando...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+<script>
+let catalogoCache = [];
+
+async function cargarStats() {
+  const [rCat, rAlm] = await Promise.all([fetch('/api/catalogo'), fetch('/api/almacen')]);
+  const cat = await rCat.json();
+  const alm = await rAlm.json();
+  catalogoCache = cat;
+  document.getElementById('tProductos').textContent = cat.length;
+  document.getElementById('tLotes').textContent     = alm.filter(l=>l.estado==='DISPONIBLE').length;
+  const totalCajas = alm.filter(l=>l.estado==='DISPONIBLE').reduce((s,l)=>s+l.cantidadCajas,0);
+  document.getElementById('tCajas').textContent     = totalCajas;
+
+  const tbody = document.getElementById('tabla');
+  if (!alm.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#999;padding:20px">No hay lotes en el almacen</td></tr>'; return; }
+  tbody.innerHTML = alm.map(l=>`<tr>
+    <td><span class="badge">${l.codigoCaja}</span></td>
+    <td><span class="badge">${l.codigoProducto}</span></td>
+    <td>${l.producto}</td>
+    <td><strong>${l.cantidadCajas}</strong> cajas</td>
+    <td>${l.pesoKgPorCaja} kg</td>
+    <td style="font-size:12px">Zona ${l.zona} - P${l.pasillo} - E${l.estante} - N${l.nivel}</td>
+    <td style="font-size:11px">${new Date(l.fechaIngreso).toLocaleString('es-GT')}</td>
+    <td class="${l.estado}">${l.estado}</td>
+  </tr>`).join('');
+}
+
+async function buscarProductos() {
+  const q = document.getElementById('buscarProducto').value.trim();
+  const lista = document.getElementById('acLista');
+  if (q.length < 1) { lista.style.display='none'; return; }
+  const res  = await fetch('/api/catalogo/buscar?q=' + encodeURIComponent(q));
+  const data = await res.json();
+  if (!data.length) { lista.style.display='none'; return; }
+  lista.innerHTML = data.map(p =>
+    `<div onclick="seleccionarProducto('${p.codigoProducto}','${p.nombreProducto}')">
+      <strong>${p.codigoProducto}</strong> — ${p.nombreProducto}
+      <span style="float:right;color:#888;font-size:11px">${p.cajasEnStock} cajas en stock</span>
+    </div>`
+  ).join('');
+  lista.style.display = 'block';
+}
+
+function seleccionarProducto(codigo, nombre) {
+  document.getElementById('codigoProducto').value       = codigo;
+  document.getElementById('buscarProducto').value       = codigo + ' — ' + nombre;
+  document.getElementById('productoSeleccionado').value = nombre;
+  document.getElementById('acLista').style.display      = 'none';
+  document.getElementById('cantidadCajas').focus();
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.autocomplete-wrap')) document.getElementById('acLista').style.display='none';
+});
+
+async function ingresarCajas() {
+  const codigoProducto = document.getElementById('codigoProducto').value.trim();
+  const cantidadCajas  = parseInt(document.getElementById('cantidadCajas').value);
+  const zona           = document.getElementById('zona').value.trim().toUpperCase();
+  const pasillo        = parseInt(document.getElementById('pasillo').value);
+  const estante        = parseInt(document.getElementById('estante').value);
+  const nivel          = parseInt(document.getElementById('nivel').value);
+
+  if (!codigoProducto) { mostrarAlerta('err','Selecciona un producto del catalogo'); return; }
+  if (!cantidadCajas || cantidadCajas < 1) { mostrarAlerta('err','Ingresa una cantidad valida'); return; }
+  if (!zona) { mostrarAlerta('err','La zona es obligatoria'); return; }
+
+  const body = { codigoProducto, cantidadCajas, zona, pasillo: pasillo||1, estante: estante||1, nivel: nivel||1 };
+  const res  = await fetch('/api/almacen/ingresar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if (res.ok) {
+    const data = await res.json();
+    mostrarAlerta('ok',`✅ Lote ${data.codigoCaja} ingresado | ${data.cantidadCajas} cajas de ${data.producto} en ${data.ubicacion}`);
+    ['buscarProducto','codigoProducto','productoSeleccionado','cantidadCajas','zona','pasillo','estante','nivel']
+      .forEach(id => document.getElementById(id).value='');
+    cargarStats();
+  } else {
+    const err = await res.text();
+    mostrarAlerta('err', err.replace('Error: ',''));
+  }
+}
+
+function mostrarAlerta(t,m){const el=document.getElementById('alerta');el.className=`alerta ${t}`;el.textContent=m;el.style.display='block';setTimeout(()=>el.style.display='none',6000)}
+cargarStats();
+</script>
+</body>
+</html>

@@ -1,0 +1,180 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/><title>Pilotos - Enlatados MG</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+body { background: #f5f6fa; }
+.header { background: #1a237e; color: white; padding: 16px 28px; display: flex; justify-content: space-between; align-items: center; }
+.header a { color: white; text-decoration: none; font-size: 14px; }
+.contenido { max-width: 960px; margin: 30px auto; padding: 0 20px; }
+.stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 24px; }
+.stat { background: white; border-radius: 10px; padding: 16px 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.07); text-align: center; }
+.stat .num { font-size: 28px; font-weight: 800; color: #1a237e; }
+.stat .lbl { font-size: 12px; color: #888; margin-top: 4px; }
+.card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 24px; }
+.card h3 { color: #1a237e; margin-bottom: 18px; font-size: 16px; border-bottom: 2px solid #e8eaf6; padding-bottom: 10px; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.campo label { display: block; font-size: 13px; font-weight: 600; color: #555; margin-bottom: 6px; }
+.campo input, .campo select { width: 100%; padding: 11px 13px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; outline: none; }
+.campo input:focus, .campo select:focus { border-color: #1a237e; }
+.btns { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+.btn { padding: 11px 18px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 14px; }
+.btn-ok { background: #1a237e; color: white; }
+.btn-sec { background: #e8eaf6; color: #1a237e; }
+.alerta { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-top: 12px; display: none; }
+.alerta.ok { background: #e8f5e9; color: #2e7d32; }
+.alerta.err { background: #ffebee; color: #c62828; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { background: #e8eaf6; color: #1a237e; padding: 10px 12px; text-align: left; }
+td { padding: 9px 12px; border-bottom: 1px solid #f0f0f0; }
+.badge { display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700; }
+.LIBRE{background:#e8f5e9;color:#2e7d32;} .OCUPADO{background:#fff3e0;color:#e65100;} .DE_VACACIONES{background:#e3f2fd;color:#1565c0;}
+.btn-sm { padding: 4px 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; margin-right: 4px; }
+.btn-edit { background: #e3f2fd; color: #1565c0; }
+.btn-estado { background: #e8eaf6; color: #333; }
+.modal-bg { display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:100;align-items:center;justify-content:center; }
+.modal-bg.visible { display:flex; }
+.modal { background:white;border-radius:14px;padding:28px;width:420px;max-width:95vw; }
+.modal h4 { color:#1a237e;margin-bottom:16px;font-size:16px; }
+.modal .grid { margin-bottom:0; }
+.modal-btns { display:flex;gap:10px;margin-top:16px; }
+.btn-cancel { background:#e0e0e0;color:#333;padding:10px 18px;border:none;border-radius:8px;cursor:pointer;font-weight:700; }
+</style>
+</head><body>
+<div class="header"><h1>🚗 Gestion de Pilotos</h1><a href="/menu.html">← Volver al menu</a></div>
+<div class="contenido">
+
+  <div class="stats">
+    <div class="stat"><div class="num" id="tTotal">0</div><div class="lbl">Total pilotos</div></div>
+    <div class="stat"><div class="num" id="tLibres" style="color:#2e7d32">0</div><div class="lbl">Disponibles</div></div>
+    <div class="stat"><div class="num" id="tOcupados" style="color:#e65100">0</div><div class="lbl">Ocupados</div></div>
+  </div>
+
+  <div class="card"><h3>Registrar Nuevo Piloto</h3>
+    <div class="grid">
+      <div class="campo"><label>CUI (unico por piloto)</label><input type="text" id="cui" placeholder="Ej: 1234567890101"/></div>
+      <div class="campo"><label>Telefono</label><input type="text" id="telefono" placeholder="Numero de telefono"/></div>
+      <div class="campo"><label>Nombre</label><input type="text" id="nombre" placeholder="Nombre del piloto"/></div>
+      <div class="campo"><label>Apellidos</label><input type="text" id="apellidos" placeholder="Apellidos"/></div>
+      <div class="campo"><label>Tipo de Licencia</label>
+        <select id="licencia"><option value="A">Tipo A</option><option value="B">Tipo B</option><option value="C">Tipo C</option></select>
+      </div>
+    </div>
+    <div class="btns">
+      <button class="btn btn-ok" onclick="guardar()">Registrar Piloto</button>
+      <button class="btn btn-sec" onclick="limpiar()">Limpiar</button>
+    </div>
+    <div class="alerta" id="alerta"></div>
+  </div>
+
+  <div class="card"><h3>Pilotos Registrados</h3>
+    <table><thead><tr><th>CUI</th><th>Nombre</th><th>Licencia</th><th>Telefono</th><th>Estado</th><th>Acciones</th></tr></thead>
+    <tbody id="tabla"><tr><td colspan="6" style="text-align:center;color:#999;padding:20px">Cargando...</td></tr></tbody></table>
+  </div>
+</div>
+
+<!-- Modal Editar -->
+<div class="modal-bg" id="modalEditar">
+  <div class="modal">
+    <h4>✏️ Editar Piloto</h4>
+    <input type="hidden" id="editCui"/>
+    <div class="grid">
+      <div class="campo"><label>Nombre</label><input type="text" id="editNombre"/></div>
+      <div class="campo"><label>Apellidos</label><input type="text" id="editApellidos"/></div>
+      <div class="campo"><label>Telefono</label><input type="text" id="editTelefono"/></div>
+      <div class="campo"><label>Licencia</label>
+        <select id="editLicencia"><option value="A">Tipo A</option><option value="B">Tipo B</option><option value="C">Tipo C</option></select>
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-ok" onclick="guardarEdicion()">Guardar Cambios</button>
+      <button class="btn-cancel" onclick="cerrarModal('modalEditar')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Cambiar Estado -->
+<div class="modal-bg" id="modalEstado">
+  <div class="modal">
+    <h4>🔄 Cambiar Estado del Piloto</h4>
+    <input type="hidden" id="estadoCui"/>
+    <p id="estadoInfo" style="margin-bottom:14px;color:#555;font-size:13px"></p>
+    <div class="campo"><label>Nuevo Estado</label>
+      <select id="nuevoEstado">
+        <option value="LIBRE">LIBRE — disponible para pedidos</option>
+        <option value="OCUPADO">OCUPADO — en pedido activo</option>
+        <option value="DE_VACACIONES">DE VACACIONES — no disponible</option>
+      </select>
+    </div>
+    <div class="modal-btns" style="margin-top:14px">
+      <button class="btn btn-ok" onclick="confirmarEstado()">Actualizar</button>
+      <button class="btn-cancel" onclick="cerrarModal('modalEstado')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+async function cargar() {
+  const res = await fetch('/api/pilotos'); const data = await res.json();
+  document.getElementById('tTotal').textContent   = data.length;
+  document.getElementById('tLibres').textContent  = data.filter(p=>p.estado==='LIBRE').length;
+  document.getElementById('tOcupados').textContent = data.filter(p=>p.estado==='OCUPADO').length;
+  const tbody = document.getElementById('tabla');
+  if (!data.length) { tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:#999;padding:20px">No hay pilotos registrados</td></tr>'; return; }
+  tbody.innerHTML = data.map(p=>`<tr>
+    <td><code>${p.cui}</code></td>
+    <td><strong>${p.nombre||''} ${p.apellidos||''}</strong></td>
+    <td>Tipo ${p.licencia}</td>
+    <td>${p.telefono||'-'}</td>
+    <td><span class="badge ${p.estado}">${(p.estado||'').replace('_',' ')}</span></td>
+    <td>
+      <button class="btn-sm btn-edit" onclick="abrirEditar('${p.cui}','${p.nombre||''}','${p.apellidos||''}','${p.licencia}','${p.telefono||''}')">Editar</button>
+      <button class="btn-sm btn-estado" onclick="abrirEstado('${p.cui}','${p.nombre||''} ${p.apellidos||''}','${p.estado}')">Estado</button>
+    </td></tr>`).join('');
+}
+
+async function guardar() {
+  const body = { cui:document.getElementById('cui').value.trim(), nombre:document.getElementById('nombre').value.trim(),
+    apellidos:document.getElementById('apellidos').value.trim(), telefono:document.getElementById('telefono').value.trim(),
+    licencia:document.getElementById('licencia').value };
+  if (!body.cui||!body.nombre) { mostrarAlerta('err','CUI y Nombre son obligatorios'); return; }
+  const res = await fetch('/api/pilotos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if (res.ok) { mostrarAlerta('ok','Piloto registrado exitosamente'); limpiar(); cargar(); }
+  else { const err=await res.text(); mostrarAlerta('err',err); }
+}
+
+function limpiar() { ['cui','nombre','apellidos','telefono'].forEach(id=>document.getElementById(id).value=''); }
+
+function abrirEditar(cui,nombre,apellidos,licencia,telefono) {
+  document.getElementById('editCui').value=cui; document.getElementById('editNombre').value=nombre;
+  document.getElementById('editApellidos').value=apellidos; document.getElementById('editLicencia').value=licencia;
+  document.getElementById('editTelefono').value=telefono;
+  document.getElementById('modalEditar').classList.add('visible');
+}
+
+async function guardarEdicion() {
+  const cui = document.getElementById('editCui').value;
+  const body = { nombre:document.getElementById('editNombre').value, apellidos:document.getElementById('editApellidos').value,
+    licencia:document.getElementById('editLicencia').value, telefono:document.getElementById('editTelefono').value };
+  const res = await fetch(`/api/pilotos/${cui}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if (res.ok) { cerrarModal('modalEditar'); cargar(); mostrarAlerta('ok','Datos actualizados'); }
+  else { const err=await res.text(); mostrarAlerta('err',err); }
+}
+
+function abrirEstado(cui,nombre,estadoActual) {
+  document.getElementById('estadoCui').value=cui;
+  document.getElementById('estadoInfo').textContent=`Piloto: ${nombre}`;
+  document.getElementById('nuevoEstado').value=estadoActual;
+  document.getElementById('modalEstado').classList.add('visible');
+}
+
+async function confirmarEstado() {
+  const cui=document.getElementById('estadoCui').value;
+  const estado=document.getElementById('nuevoEstado').value;
+  const res=await fetch(`/api/pilotos/${cui}/estado`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({estado})});
+  if (res.ok) { cerrarModal('modalEstado'); cargar(); mostrarAlerta('ok','Estado actualizado'); }
+  else { const err=await res.text(); mostrarAlerta('err',err); }
+}
+
+function cerrarModal(id) { document.getElementById(id).classList.remove('visible'); }
+function mostrarAlerta(t,m){const el=document.getElementById('alerta');el.className=`alerta ${t}`;el.textContent=m;el.style.display='block';setTimeout(()=>el.style.display='none',5000);}
+cargar();
+</script></body></html>

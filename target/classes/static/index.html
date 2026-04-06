@@ -1,0 +1,89 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Enlatados MG - Acceso</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+body { background: #1a237e; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+.contenedor { background: white; border-radius: 16px; padding: 40px; width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+.logo { text-align: center; margin-bottom: 30px; }
+.logo h1 { color: #1a237e; font-size: 26px; font-weight: 800; }
+.logo p { color: #777; font-size: 13px; margin-top: 4px; }
+.tabs { display: flex; background: #f0f0f0; border-radius: 10px; padding: 4px; margin-bottom: 28px; }
+.tab { flex: 1; padding: 10px; text-align: center; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; color: #666; transition: all 0.2s; border: none; background: transparent; }
+.tab.activo { background: #1a237e; color: white; }
+.campo { margin-bottom: 18px; }
+.campo label { display: block; font-size: 13px; font-weight: 600; color: #444; margin-bottom: 6px; }
+.campo input { width: 100%; padding: 12px 14px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; outline: none; transition: border 0.2s; }
+.campo input:focus { border-color: #1a237e; }
+.btn { width: 100%; padding: 14px; background: #1a237e; color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 6px; }
+.btn:hover { background: #283593; }
+.alerta { padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-top: 16px; display: none; }
+.alerta.error { background: #ffebee; color: #c62828; border-left: 4px solid #c62828; }
+.alerta.exito { background: #e8f5e9; color: #2e7d32; border-left: 4px solid #2e7d32; }
+.panel { display: none; } .panel.activo { display: block; }
+.info-id { background: #e3f2fd; border-radius: 8px; padding: 12px; margin-top: 14px; font-size: 13px; color: #1565c0; display: none; }
+</style>
+</head><body>
+<div class="contenedor">
+  <div class="logo"><h1>🥫 Enlatados MG</h1><p>Sistema de Gestion Empresarial</p></div>
+  <div class="tabs">
+    <button class="tab activo" onclick="cambiarTab('login')">Iniciar Sesion</button>
+    <button class="tab" onclick="cambiarTab('registro')">Crear Cuenta</button>
+  </div>
+
+  <div class="panel activo" id="panelLogin">
+    <div class="campo"><label>Nombre de usuario</label><input type="text" id="loginNombre" placeholder="Tu nombre de usuario"/></div>
+    <div class="campo"><label>Contrasena</label><input type="password" id="loginContrasena" placeholder="Tu contrasena"/></div>
+    <button class="btn" onclick="iniciarSesion()">Iniciar Sesion</button>
+    <div class="alerta" id="alertaLogin"></div>
+  </div>
+
+  <div class="panel" id="panelRegistro">
+    <div class="campo"><label>Nombre</label><input type="text" id="regNombre" placeholder="Tu nombre"/></div>
+    <div class="campo"><label>Apellidos</label><input type="text" id="regApellidos" placeholder="Tus apellidos"/></div>
+    <div class="campo"><label>Contrasena (minimo 4 caracteres)</label><input type="password" id="regContrasena" placeholder="Crea una contrasena"/></div>
+    <button class="btn" onclick="registrarUsuario()">Crear Cuenta</button>
+    <div class="info-id" id="infoId"></div>
+    <div class="alerta" id="alertaRegistro"></div>
+  </div>
+</div>
+
+<script>
+function cambiarTab(tab) {
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('activo',(i===0&&tab==='login')||(i===1&&tab==='registro')));
+  document.getElementById('panelLogin').classList.toggle('activo',tab==='login');
+  document.getElementById('panelRegistro').classList.toggle('activo',tab==='registro');
+}
+
+async function iniciarSesion() {
+  const nombre=document.getElementById('loginNombre').value.trim();
+  const contrasena=document.getElementById('loginContrasena').value;
+  if(!nombre||!contrasena){mostrarAlerta('alertaLogin','error','Completa nombre y contrasena.');return;}
+  try {
+    const res=await fetch('/api/usuarios/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre,contrasena})});
+    const data=await res.json();
+    if(res.ok){sessionStorage.setItem('usuario',JSON.stringify(data));window.location.href='/menu.html';}
+    else mostrarAlerta('alertaLogin','error', typeof data==='string'?data:data.message||'Error al iniciar sesion.');
+  } catch(e){mostrarAlerta('alertaLogin','error','Error de conexion con el servidor.');}
+}
+
+async function registrarUsuario() {
+  const nombre=document.getElementById('regNombre').value.trim();
+  const apellidos=document.getElementById('regApellidos').value.trim();
+  const contrasena=document.getElementById('regContrasena').value;
+  if(!nombre){mostrarAlerta('alertaRegistro','error','El nombre es obligatorio.');return;}
+  if(!contrasena||contrasena.length<4){mostrarAlerta('alertaRegistro','error','La contrasena debe tener al menos 4 caracteres.');return;}
+  try {
+    const res=await fetch('/api/usuarios/registro',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre,apellidos,contrasena})});
+    const data=await res.json();
+    if(res.ok){
+      const info=document.getElementById('infoId');
+      info.style.display='block';
+      info.innerHTML=`✅ Cuenta creada.<br>Tu ID asignado es: <strong>#${data.id}</strong><br>Ya puedes iniciar sesion.`;
+      mostrarAlerta('alertaRegistro','exito','Cuenta creada. Ahora inicia sesion.');
+      setTimeout(()=>cambiarTab('login'),2500);
+    } else mostrarAlerta('alertaRegistro','error',typeof data==='string'?data:data.message||'Error al crear cuenta.');
+  } catch(e){mostrarAlerta('alertaRegistro','error','Error de conexion.');}
+}
+
+function mostrarAlerta(id,tipo,msg){const el=document.getElementById(id);el.className=`alerta ${tipo}`;el.textContent=msg;el.style.display='block';setTimeout(()=>el.style.display='none',5000);}
+</script></body></html>

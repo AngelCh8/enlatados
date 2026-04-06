@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Clientes - Enlatados MG</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+    body { background: #f5f6fa; }
+    .header { background: #1a237e; color: white; padding: 16px 28px; display: flex; justify-content: space-between; align-items: center; }
+    .header a { color: white; text-decoration: none; font-size: 14px; }
+    .contenido { max-width: 900px; margin: 30px auto; padding: 0 20px; }
+    .card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 24px; }
+    .card h3 { color: #333; margin-bottom: 18px; font-size: 16px; border-bottom: 2px solid #e8eaf6; padding-bottom: 10px; }
+    .fila-campos { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .campo label { display: block; font-size: 13px; font-weight: 600; color: #555; margin-bottom: 6px; }
+    .campo input { width: 100%; padding: 11px 13px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; outline: none; }
+    .campo input:focus { border-color: #1a237e; }
+    .campo-full { grid-column: 1 / -1; }
+    .btn { padding: 12px 20px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 14px; margin-top: 14px; margin-right: 8px; }
+    .btn-principal { background: #1a237e; color: white; }
+    .btn-secundario { background: #e8eaf6; color: #1a237e; }
+    .alerta { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-top: 12px; display: none; }
+    .alerta.exito { background: #e8f5e9; color: #2e7d32; }
+    .alerta.error  { background: #ffebee; color: #c62828; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { background: #e8eaf6; color: #1a237e; padding: 10px 12px; text-align: left; }
+    td { padding: 10px 12px; border-bottom: 1px solid #f0f0f0; }
+    tr:hover td { background: #f9f9f9; }
+    .btn-accion { padding: 5px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; }
+    .btn-eliminar { background: #ffebee; color: #c62828; }
+  </style>
+</head>
+<body>
+<div class="header">
+  <h1>👥 Gestion de Clientes</h1>
+  <a href="/menu.html">← Volver al menu</a>
+</div>
+<div class="contenido">
+  <div class="card">
+    <h3>Registrar Nuevo Cliente</h3>
+    <div class="fila-campos">
+      <div class="campo"><label>CUI</label><input type="text" id="cui" placeholder="Codigo unico de identificacion"/></div>
+      <div class="campo"><label>Telefono</label><input type="text" id="telefono" placeholder="Numero de telefono"/></div>
+      <div class="campo"><label>Nombre</label><input type="text" id="nombre" placeholder="Nombre del cliente"/></div>
+      <div class="campo"><label>Apellidos</label><input type="text" id="apellidos" placeholder="Apellidos"/></div>
+      <div class="campo campo-full"><label>Direccion</label><input type="text" id="direccion" placeholder="Direccion de entrega"/></div>
+    </div>
+    <button class="btn btn-principal" onclick="guardar()">Guardar Cliente</button>
+    <button class="btn btn-secundario" onclick="limpiar()">Limpiar</button>
+    <div class="alerta" id="alerta"></div>
+  </div>
+
+  <div class="card">
+    <h3>Lista de Clientes</h3>
+    <table>
+      <thead><tr><th>CUI</th><th>Nombre</th><th>Telefono</th><th>Direccion</th><th>Acciones</th></tr></thead>
+      <tbody id="tablaClientes"><tr><td colspan="5" style="text-align:center;color:#999;padding:20px">Cargando...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+<script>
+  async function cargar() {
+    const res  = await fetch('/api/clientes');
+    const data = await res.json();
+    const tbody = document.getElementById('tablaClientes');
+    tbody.innerHTML = data.length === 0
+      ? '<tr><td colspan="5" style="text-align:center;color:#999;padding:20px">No hay clientes registrados</td></tr>'
+      : data.map(c => `<tr><td>${c.cui}</td><td>${c.nombre} ${c.apellidos||''}</td><td>${c.telefono||'-'}</td><td>${c.direccion||'-'}</td>
+          <td><button class="btn-accion btn-eliminar" onclick="eliminar('${c.cui}')">Eliminar</button></td></tr>`).join('');
+  }
+  async function guardar() {
+    const body = { cui: document.getElementById('cui').value.trim(), nombre: document.getElementById('nombre').value.trim(),
+      apellidos: document.getElementById('apellidos').value.trim(), telefono: document.getElementById('telefono').value.trim(),
+      direccion: document.getElementById('direccion').value.trim() };
+    if (!body.cui || !body.nombre) { mostrarAlerta('error','CUI y Nombre son obligatorios'); return; }
+    const res = await fetch('/api/clientes', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    if (res.ok) { mostrarAlerta('exito','Cliente guardado exitosamente'); limpiar(); cargar(); }
+    else mostrarAlerta('error','Error al guardar');
+  }
+  async function eliminar(cui) {
+    if (!confirm('Eliminar este cliente?')) return;
+    await fetch(`/api/clientes/${cui}`, { method:'DELETE' });
+    cargar();
+  }
+  function limpiar() { ['cui','nombre','apellidos','telefono','direccion'].forEach(id => document.getElementById(id).value=''); }
+  function mostrarAlerta(tipo, msg) {
+    const el = document.getElementById('alerta');
+    el.className = `alerta ${tipo}`; el.textContent = msg; el.style.display = 'block';
+    setTimeout(() => el.style.display = 'none', 3500);
+  }
+  cargar();
+</script>
+</body>
+</html>

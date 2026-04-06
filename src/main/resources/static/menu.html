@@ -1,0 +1,47 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/><title>Enlatados MG - Menu</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+body { background: #f5f6fa; min-height: 100vh; }
+.header { background: #1a237e; color: white; padding: 18px 32px; display: flex; justify-content: space-between; align-items: center; }
+.header h1 { font-size: 20px; }
+.header-right { display: flex; align-items: center; gap: 16px; font-size: 14px; }
+.btn-salir { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+.bienvenida { text-align: center; padding: 36px 20px 16px; }
+.bienvenida h2 { color: #1a237e; font-size: 22px; }
+.bienvenida p { color: #777; margin-top: 6px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 18px; padding: 16px 40px 40px; max-width: 1000px; margin: 0 auto; }
+.tarjeta { background: white; border-radius: 14px; padding: 26px 18px; text-align: center; cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,0.08); transition: all 0.2s; text-decoration: none; color: inherit; display: block; border: 2px solid transparent; }
+.tarjeta:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,0.14); border-color: #1a237e; }
+.tarjeta .icono { font-size: 38px; margin-bottom: 12px; }
+.tarjeta h3 { font-size: 14px; color: #333; font-weight: 700; }
+.tarjeta p { font-size: 11px; color: #999; margin-top: 4px; }
+.tarjeta.especial { border: 2px solid #1a237e; }
+</style>
+</head><body>
+<div class="header">
+  <h1>🥫 Enlatados MG</h1>
+  <div class="header-right">
+    <span id="nombreUsuario">Usuario</span>
+    <button class="btn-salir" onclick="cerrarSesion()">Cerrar Sesion</button>
+  </div>
+</div>
+<div class="bienvenida">
+  <h2 id="saludo">Bienvenido al sistema</h2>
+  <p>Selecciona la opcion que deseas utilizar</p>
+</div>
+<div class="grid">
+  <a class="tarjeta" href="/usuarios.html"><div class="icono">👤</div><h3>Usuarios</h3><p>Editar y eliminar usuarios</p></a>
+  <a class="tarjeta" href="/clientes.html"><div class="icono">👥</div><h3>Clientes</h3><p>Registrar y gestionar clientes</p></a>
+  <a class="tarjeta" href="/pilotos.html"><div class="icono">🚗</div><h3>Pilotos</h3><p>Gestionar pilotos de reparto</p></a>
+  <a class="tarjeta" href="/vehiculos.html"><div class="icono">🚛</div><h3>Vehiculos</h3><p>Administrar flota</p></a>
+  <a class="tarjeta" href="/registro-producto.html"><div class="icono">🗂</div><h3>Catalogo</h3><p>Registrar productos nuevos</p></a>
+  <a class="tarjeta" href="/almacen.html"><div class="icono">📦</div><h3>Almacen</h3><p>Ingresar inventario</p></a>
+  <a class="tarjeta" href="/pedidos.html"><div class="icono">📋</div><h3>Pedidos</h3><p>Crear y gestionar entregas</p></a>
+  <a class="tarjeta especial" href="/reportes.html"><div class="icono">📊</div><h3>Reportes</h3><p>Ver estado del sistema</p></a>
+</div>
+<script>
+const usuario=JSON.parse(sessionStorage.getItem('usuario')||'null');
+if(!usuario){window.location.href='/index.html';}
+else{document.getElementById('nombreUsuario').textContent=usuario.nombre||'Usuario';document.getElementById('saludo').textContent=`Bienvenido, ${usuario.nombre}`;}
+function cerrarSesion(){sessionStorage.removeItem('usuario');window.location.href='/index.html';}
+</script></body></html>

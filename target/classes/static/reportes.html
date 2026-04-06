@@ -1,0 +1,120 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/><title>Reportes - Enlatados MG</title>
+<style>* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; } body { background: #f5f6fa; } .header { background: #1a237e; color: white; padding: 16px 28px; display: flex; justify-content: space-between; align-items: center; } .header a { color: white; text-decoration: none; font-size: 14px; } .contenido { max-width: 1000px; margin: 30px auto; padding: 0 20px; } h2 { color: #1a237e; margin-bottom: 20px; } .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 28px; } .rbtn { background: white; border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.08); transition: all 0.2s; border: 2px solid transparent; } .rbtn:hover { border-color: #1a237e; transform: translateY(-2px); } .rbtn .ico { font-size: 32px; margin-bottom: 8px; } .rbtn h4 { color: #1a237e; font-size: 14px; } .rbtn p { font-size: 11px; color: #999; margin-top: 3px; } .card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 20px; display: none; } .card.visible { display: block; } .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 2px solid #e8eaf6; padding-bottom: 10px; } .card-header h3 { color: #1a237e; font-size: 16px; } .tabs { display: flex; gap: 8px; } .tab { padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700; } .tab.activo { background: #1a237e; color: white; } .tab:not(.activo) { background: #e8eaf6; color: #555; } table { width: 100%; border-collapse: collapse; font-size: 13px; } th { background: #e8eaf6; color: #1a237e; padding: 10px 12px; text-align: left; } td { padding: 9px 12px; border-bottom: 1px solid #f0f0f0; } .grafico { min-height: 200px; display: flex; align-items: center; justify-content: center; } .grafico svg { max-width: 100%; height: auto; } .badge { display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700; } .PENDIENTE{background:#fff9c4;color:#f57f17;} .EN_CAMINO{background:#b3e5fc;color:#0277bd;} .COMPLETADO{background:#e8f5e9;color:#2e7d32;} .CANCELADO{background:#ffebee;color:#c62828;} .DISPONIBLE{background:#e8f5e9;color:#2e7d32;} .DANADA{background:#ffebee;color:#c62828;} .VENDIDA{background:#fff9c4;color:#f57f17;} .cargando{color:#999;font-size:13px;text-align:center;padding:30px;}</style>
+</head><body>
+<div class="header"><h1>📊 Reportes del Sistema</h1><a href="/menu.html">← Volver al menu</a></div>
+<div class="contenido">
+  <h2>Selecciona el reporte que deseas visualizar</h2>
+  <div class="grid">
+    <div class="rbtn" onclick="verReporte('usuarios')"><div class="ico">👤</div><h4>Usuarios</h4><p>Lista enlazada de usuarios</p></div>
+    <div class="rbtn" onclick="verReporte('clientes')"><div class="ico">👥</div><h4>Clientes</h4><p>Arbol AVL de clientes</p></div>
+    <div class="rbtn" onclick="verReporte('inventario')"><div class="ico">📦</div><h4>Inventario</h4><p>Pila del almacen</p></div>
+    <div class="rbtn" onclick="verReporte('pilotos')"><div class="ico">🚗</div><h4>Pilotos</h4><p>Cola de pilotos</p></div>
+    <div class="rbtn" onclick="verReporte('vehiculos')"><div class="ico">🚛</div><h4>Vehiculos</h4><p>Cola de vehiculos</p></div>
+    <div class="rbtn" onclick="verReporte('pedidos')"><div class="ico">📋</div><h4>Pedidos</h4><p>Lista de pedidos</p></div>
+  </div>
+
+  <div class="card" id="cardReporte">
+    <div class="card-header">
+      <h3 id="tituloReporte">Reporte</h3>
+      <div class="tabs">
+        <button class="tab activo" id="tabTabla" onclick="cambiarVista('tabla')">Tabla</button>
+        <button class="tab" id="tabGrafico" onclick="cambiarVista('grafico')">Grafico</button>
+      </div>
+    </div>
+    <div id="vistaTabla"></div>
+    <div id="vistaGrafico" class="grafico" style="display:none"></div>
+  </div>
+</div>
+<script>
+    let tipoActual = '';
+    let graficoCargado = false;
+
+    const TITULOS = {
+      usuarios:'Usuarios del Sistema', clientes:'Arbol de Clientes',
+      inventario:'Inventario del Almacen', pilotos:'Pilotos Registrados',
+      vehiculos:'Vehiculos Registrados', pedidos:'Historial de Pedidos'
+    };
+
+    const DOT_URL = {
+      usuarios:'/api/reportes/dot/usuarios', clientes:'/api/reportes/dot/clientes',
+      inventario:'/api/reportes/dot/almacen', pilotos:'/api/reportes/dot/pilotos',
+      vehiculos:'/api/reportes/dot/vehiculos', pedidos:'/api/reportes/dot/pedidos'
+    };
+
+    async function verReporte(tipo) {
+      tipoActual = tipo; graficoCargado = false;
+      document.getElementById('tituloReporte').textContent = TITULOS[tipo];
+      document.getElementById('cardReporte').classList.add('visible');
+      document.getElementById('vistaGrafico').innerHTML = '';
+      cambiarVista('tabla');
+      await cargarTabla(tipo);
+    }
+
+    async function cargarTabla(tipo) {
+      const endpoint = tipo === 'inventario' ? '/api/reportes/inventario' : `/api/reportes/${tipo}`;
+      const res  = await fetch(endpoint);
+      const data = await res.json();
+      const div  = document.getElementById('vistaTabla');
+      if (tipo === 'usuarios') {
+        div.innerHTML = tabla(['ID','Nombre','Apellidos'], (data.datos||[]).map(u=>`<tr><td>${u.id}</td><td>${u.nombre}</td><td>${u.apellidos||'-'}</td></tr>`));
+      } else if (tipo === 'clientes') {
+        div.innerHTML = tabla(['CUI','Nombre','Telefono','Direccion'], (data.datos||[]).map(c=>`<tr><td>${c.cui}</td><td>${c.nombre} ${c.apellidos||''}</td><td>${c.telefono||'-'}</td><td>${c.direccion||'-'}</td></tr>`));
+      } else if (tipo === 'inventario') {
+        div.innerHTML = tabla(['Lote','Cod.Producto','Producto','Cajas','Ubicacion','Estado'], (data.datos||[]).map(c=>`<tr><td>${c.codigoCaja||'-'}</td><td>${c.codigoProducto||'-'}</td><td>${c.producto||'-'}</td><td>${c.cantidadCajas??'-'}</td><td style="font-size:11px">Zona ${c.zona}-P${c.pasillo}-E${c.estante}-N${c.nivel}</td><td>${c.estado}</td></tr>`));
+      } else if (tipo === 'pilotos') {
+        div.innerHTML = tabla(['CUI','Nombre','Licencia','Estado'], (data.datos||[]).map(p=>`<tr><td>${p.cui}</td><td>${p.nombre} ${p.apellidos||''}</td><td>Tipo ${p.licencia}</td><td>${p.estado||'LIBRE'}</td></tr>`));
+      } else if (tipo === 'vehiculos') {
+        div.innerHTML = tabla(['Placa','Marca','Modelo','Cajas','Estado'], (data.datos||[]).map(v=>`<tr><td>${v.placa}</td><td>${v.marca}</td><td>${v.modelo}</td><td>${v.cajasActuales??0}/${v.capacidadMaxCajas??'-'}</td><td>${v.estado||'LIBRE'}</td></tr>`));
+      } else if (tipo === 'pedidos') {
+        div.innerHTML = tabla(['#','Cliente','Destino','Cajas','Total','Estado'], (data.datos||[]).map(p=>`<tr><td>${p.numeroPedido}</td><td>${p.cliente?.nombre||'-'}</td><td>${p.departamentoDestino}</td><td>${p.totalCajas??p.numeroCajas??0}</td><td>Q ${(p.totalAPagar??0).toFixed(2)}</td><td>${p.estado.replace('_',' ')}</td></tr>`));
+      }
+    }
+
+    function tabla(headers, filas) {
+      const ths  = headers.map(h=>`<th>${h}</th>`).join('');
+      const rows = filas.length ? filas.join('') : `<tr><td colspan="${headers.length}" style="text-align:center;color:#999;padding:20px">Sin datos</td></tr>`;
+      return `<table><thead><tr>${ths}</tr></thead><tbody>${rows}</tbody></table>`;
+    }
+
+    async function cambiarVista(vista) {
+      document.getElementById('tabTabla').classList.toggle('activo',   vista==='tabla');
+      document.getElementById('tabGrafico').classList.toggle('activo', vista==='grafico');
+      document.getElementById('vistaTabla').style.display   = vista==='tabla'   ? 'block' : 'none';
+      document.getElementById('vistaGrafico').style.display = vista==='grafico' ? 'flex'  : 'none';
+      if (vista === 'grafico' && !graficoCargado) await cargarGrafico();
+    }
+
+    async function cargarGrafico() {
+      const divG = document.getElementById('vistaGrafico');
+      divG.innerHTML = '<div class="cargando">Generando grafico...</div>';
+      try {
+        const res = await fetch(DOT_URL[tipoActual]);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        const dot  = data.dot;
+
+        // Renderizar via quickchart.io — no requiere libreria local
+        const imgUrl = 'https://quickchart.io/graphviz?format=svg&graph=' + encodeURIComponent(dot);
+        const imgRes = await fetch(imgUrl);
+        if (!imgRes.ok) throw new Error('Servicio de graficos no disponible');
+        const svgText = await imgRes.text();
+        divG.innerHTML = svgText;
+        graficoCargado = true;
+      } catch(e) {
+        // Fallback: mostrar DOT para copiar y pegar en graphviz online
+        try {
+          const r2 = await fetch(DOT_URL[tipoActual]);
+          const d2 = await r2.json();
+          divG.innerHTML = `
+            <div style="width:100%">
+              <p style="color:#c62828;margin-bottom:8px">No se pudo renderizar automaticamente. Copia el codigo y pegalo en
+                <a href="https://dreampuf.github.io/GraphvizOnline/" target="_blank">GraphvizOnline</a>:
+              </p>
+              <textarea style="width:100%;height:260px;font-family:monospace;font-size:12px;padding:10px;border:2px solid #ddd;border-radius:8px" readonly>${d2.dot||''}</textarea>
+            </div>`;
+        } catch(_) {
+          divG.innerHTML = '<div class="cargando" style="color:#c62828">Error al conectar con el servidor</div>';
+        }
+      }
+    }
+</script>

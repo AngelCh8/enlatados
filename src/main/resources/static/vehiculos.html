@@ -1,0 +1,188 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/><title>Vehiculos - Enlatados MG</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+body { background: #f5f6fa; }
+.header { background: #1a237e; color: white; padding: 16px 28px; display: flex; justify-content: space-between; align-items: center; }
+.header a { color: white; text-decoration: none; font-size: 14px; }
+.contenido { max-width: 960px; margin: 30px auto; padding: 0 20px; }
+.stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 24px; }
+.stat { background: white; border-radius: 10px; padding: 16px 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.07); text-align: center; }
+.stat .num { font-size: 28px; font-weight: 800; color: #1a237e; }
+.stat .lbl { font-size: 12px; color: #888; margin-top: 4px; }
+.card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 24px; }
+.card h3 { color: #1a237e; margin-bottom: 18px; font-size: 16px; border-bottom: 2px solid #e8eaf6; padding-bottom: 10px; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.campo label { display: block; font-size: 13px; font-weight: 600; color: #555; margin-bottom: 6px; }
+.campo input, .campo select { width: 100%; padding: 11px 13px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; outline: none; }
+.campo input:focus, .campo select:focus { border-color: #1a237e; }
+.full { grid-column: 1/-1; }
+.btns { display:flex; gap:10px; margin-top:14px; }
+.btn { padding: 11px 18px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 14px; }
+.btn-ok { background: #1a237e; color: white; }
+.btn-sec { background: #e8eaf6; color: #1a237e; }
+.alerta { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-top: 12px; display: none; }
+.alerta.ok { background: #e8f5e9; color: #2e7d32; }
+.alerta.err { background: #ffebee; color: #c62828; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { background: #e8eaf6; color: #1a237e; padding: 10px 12px; text-align: left; }
+td { padding: 9px 12px; border-bottom: 1px solid #f0f0f0; }
+.badge { display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700; }
+.LIBRE{background:#e8f5e9;color:#2e7d32;} .OCUPADO{background:#fff3e0;color:#e65100;} .FUERA_DE_SERVICIO{background:#ffebee;color:#c62828;}
+.progress { background:#e0e0e0;border-radius:4px;height:8px;margin-top:4px; }
+.progress-bar { height:8px;border-radius:4px;background:#1a237e;transition:width 0.3s; }
+.btn-sm { padding:4px 10px;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;margin-right:4px; }
+.btn-edit { background:#e3f2fd;color:#1565c0; }
+.btn-estado { background:#e8eaf6;color:#333; }
+.modal-bg { display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:100;align-items:center;justify-content:center; }
+.modal-bg.visible { display:flex; }
+.modal { background:white;border-radius:14px;padding:28px;width:440px;max-width:95vw; }
+.modal h4 { color:#1a237e;margin-bottom:16px;font-size:16px; }
+.modal-btns { display:flex;gap:10px;margin-top:16px; }
+.btn-cancel { background:#e0e0e0;color:#333;padding:10px 18px;border:none;border-radius:8px;cursor:pointer;font-weight:700; }
+</style>
+</head><body>
+<div class="header"><h1>🚛 Gestion de Vehiculos</h1><a href="/menu.html">← Volver al menu</a></div>
+<div class="contenido">
+  <div class="stats">
+    <div class="stat"><div class="num" id="tTotal">0</div><div class="lbl">Total vehiculos</div></div>
+    <div class="stat"><div class="num" id="tLibres" style="color:#2e7d32">0</div><div class="lbl">Disponibles</div></div>
+    <div class="stat"><div class="num" id="tOcupados" style="color:#e65100">0</div><div class="lbl">Ocupados</div></div>
+  </div>
+
+  <div class="card"><h3>Registrar Nuevo Vehiculo</h3>
+    <div class="grid">
+      <div class="campo"><label>Placa (unica)</label><input type="text" id="placa" placeholder="Ej: P-123ABC"/></div>
+      <div class="campo"><label>Marca</label><input type="text" id="marca" placeholder="Ej: Toyota"/></div>
+      <div class="campo"><label>Modelo</label><input type="text" id="modelo" placeholder="Ej: Hilux"/></div>
+      <div class="campo"><label>Color</label><input type="text" id="color" placeholder="Color"/></div>
+      <div class="campo"><label>Anio</label><input type="number" id="anio" placeholder="2022"/></div>
+      <div class="campo"><label>Transmision</label><select id="trans"><option value="Manual">Manual</option><option value="Automatica">Automatica</option></select></div>
+      <div class="campo full"><label>Capacidad Maxima de Cajas</label><input type="number" id="capacidad" placeholder="Ej: 50" min="1"/></div>
+    </div>
+    <div class="btns">
+      <button class="btn btn-ok" onclick="guardar()">Registrar Vehiculo</button>
+    </div>
+    <div class="alerta" id="alerta"></div>
+  </div>
+
+  <div class="card"><h3>Flota de Vehiculos</h3>
+    <table><thead><tr><th>Placa</th><th>Marca / Modelo</th><th>Color / Anio</th><th>Transmision</th><th>Capacidad</th><th>Ocupacion</th><th>Estado</th><th>Acciones</th></tr></thead>
+    <tbody id="tabla"><tr><td colspan="8" style="text-align:center;color:#999;padding:20px">Cargando...</td></tr></tbody></table>
+  </div>
+</div>
+
+<!-- Modal Editar -->
+<div class="modal-bg" id="modalEditar">
+  <div class="modal">
+    <h4>✏️ Editar Vehiculo</h4>
+    <input type="hidden" id="editPlaca"/>
+    <div class="grid">
+      <div class="campo"><label>Marca</label><input type="text" id="editMarca"/></div>
+      <div class="campo"><label>Modelo</label><input type="text" id="editModelo"/></div>
+      <div class="campo"><label>Color</label><input type="text" id="editColor"/></div>
+      <div class="campo"><label>Anio</label><input type="number" id="editAnio"/></div>
+      <div class="campo"><label>Transmision</label><select id="editTrans"><option value="Manual">Manual</option><option value="Automatica">Automatica</option></select></div>
+      <div class="campo"><label>Capacidad Max Cajas</label><input type="number" id="editCapacidad" min="1"/></div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-ok" onclick="guardarEdicion()">Guardar Cambios</button>
+      <button class="btn-cancel" onclick="cerrarModal('modalEditar')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Estado -->
+<div class="modal-bg" id="modalEstado">
+  <div class="modal">
+    <h4>🔄 Cambiar Estado del Vehiculo</h4>
+    <input type="hidden" id="estadoPlaca"/>
+    <p id="estadoInfo" style="margin-bottom:14px;color:#555;font-size:13px"></p>
+    <div class="campo"><label>Nuevo Estado</label>
+      <select id="nuevoEstado">
+        <option value="LIBRE">LIBRE — disponible para pedidos</option>
+        <option value="OCUPADO">OCUPADO — en pedido activo</option>
+        <option value="FUERA_DE_SERVICIO">FUERA DE SERVICIO — mantenimiento</option>
+      </select>
+    </div>
+    <div class="modal-btns" style="margin-top:14px">
+      <button class="btn btn-ok" onclick="confirmarEstado()">Actualizar</button>
+      <button class="btn-cancel" onclick="cerrarModal('modalEstado')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+async function cargar() {
+  const res=await fetch('/api/vehiculos'); const data=await res.json();
+  document.getElementById('tTotal').textContent   = data.length;
+  document.getElementById('tLibres').textContent  = data.filter(v=>v.estado==='LIBRE').length;
+  document.getElementById('tOcupados').textContent = data.filter(v=>v.estado==='OCUPADO').length;
+  const tbody=document.getElementById('tabla');
+  if (!data.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#999;padding:20px">No hay vehiculos registrados</td></tr>';return;}
+  tbody.innerHTML=data.map(v=>{
+    const pct=v.capacidadMaxCajas>0?Math.round((v.cajasOcupadas/v.capacidadMaxCajas)*100):0;
+    return `<tr>
+      <td><strong>${v.placa}</strong></td>
+      <td>${v.marca} ${v.modelo}</td>
+      <td>${v.color} / ${v.anio}</td>
+      <td>${v.tipoTransmision}</td>
+      <td>${v.capacidadMaxCajas} cajas</td>
+      <td style="min-width:100px">${v.cajasOcupadas}/${v.capacidadMaxCajas}
+        <div class="progress"><div class="progress-bar" style="width:${pct}%"></div></div>
+      </td>
+      <td><span class="badge ${v.estado}">${(v.estado||'').replace('_',' ')}</span></td>
+      <td>
+        <button class="btn-sm btn-edit" onclick="abrirEditar(${JSON.stringify(v)})">Editar</button>
+        <button class="btn-sm btn-estado" onclick="abrirEstado('${v.placa}','${v.placa}','${v.estado}')">Estado</button>
+      </td></tr>`;
+  }).join('');
+}
+
+async function guardar() {
+  const body={placa:document.getElementById('placa').value.trim(),marca:document.getElementById('marca').value.trim(),
+    modelo:document.getElementById('modelo').value.trim(),color:document.getElementById('color').value.trim(),
+    anio:document.getElementById('anio').value,tipoTransmision:document.getElementById('trans').value,
+    capacidadMaxCajas:document.getElementById('capacidad').value};
+  if(!body.placa||!body.marca||!body.capacidadMaxCajas){mostrarAlerta('err','Placa, Marca y Capacidad son obligatorios');return;}
+  const res=await fetch('/api/vehiculos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(res.ok){mostrarAlerta('ok','Vehiculo registrado exitosamente');cargar();}
+  else{const err=await res.text();mostrarAlerta('err',err);}
+}
+
+function abrirEditar(v) {
+  document.getElementById('editPlaca').value=v.placa; document.getElementById('editMarca').value=v.marca;
+  document.getElementById('editModelo').value=v.modelo; document.getElementById('editColor').value=v.color;
+  document.getElementById('editAnio').value=v.anio; document.getElementById('editTrans').value=v.tipoTransmision;
+  document.getElementById('editCapacidad').value=v.capacidadMaxCajas;
+  document.getElementById('modalEditar').classList.add('visible');
+}
+
+async function guardarEdicion() {
+  const placa=document.getElementById('editPlaca').value;
+  const body={marca:document.getElementById('editMarca').value,modelo:document.getElementById('editModelo').value,
+    color:document.getElementById('editColor').value,anio:document.getElementById('editAnio').value,
+    tipoTransmision:document.getElementById('editTrans').value,capacidadMaxCajas:document.getElementById('editCapacidad').value};
+  const res=await fetch(`/api/vehiculos/${placa}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(res.ok){cerrarModal('modalEditar');cargar();mostrarAlerta('ok','Datos actualizados');}
+  else{const err=await res.text();mostrarAlerta('err',err);}
+}
+
+function abrirEstado(placa,label,estadoActual) {
+  document.getElementById('estadoPlaca').value=placa;
+  document.getElementById('estadoInfo').textContent=`Vehiculo: ${label}`;
+  document.getElementById('nuevoEstado').value=estadoActual;
+  document.getElementById('modalEstado').classList.add('visible');
+}
+
+async function confirmarEstado() {
+  const placa=document.getElementById('estadoPlaca').value;
+  const estado=document.getElementById('nuevoEstado').value;
+  const res=await fetch(`/api/vehiculos/${placa}/estado`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({estado})});
+  if(res.ok){cerrarModal('modalEstado');cargar();mostrarAlerta('ok','Estado actualizado');}
+  else{const err=await res.text();mostrarAlerta('err',err);}
+}
+
+function cerrarModal(id){document.getElementById(id).classList.remove('visible');}
+function mostrarAlerta(t,m){const el=document.getElementById('alerta');el.className=`alerta ${t}`;el.textContent=m;el.style.display='block';setTimeout(()=>el.style.display='none',5000);}
+cargar();
+</script></body></html>
