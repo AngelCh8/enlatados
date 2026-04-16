@@ -8,7 +8,7 @@ import java.util.List;
 
 /**
  * ============================================================
- * SERVICIO: GraphvizService
+ * SERVICIO: GraphvizServic
  * ============================================================
  * Genera codigo DOT (Graphviz) para visualizar cada estructura
  * de datos del sistema como un grafico.
@@ -58,10 +58,10 @@ public class GraphvizService {
             for (int i = 0; i < usuarios.size(); i++) {
                 Usuario u = usuarios.get(i);
                 dot.append("  u").append(i)
-                   .append(" [label=\"{ID: ").append(u.getId())
-                   .append(" | ").append(escapar(u.getNombre()))
-                   .append(" ").append(escapar(u.getApellidos() != null ? u.getApellidos() : ""))
-                   .append(" | <next> siguiente}\"];\n");
+                        .append(" [label=\"{ID: ").append(u.getId())
+                        .append(" | ").append(escapar(u.getNombre()))
+                        .append(" ").append(escapar(u.getApellidos() != null ? u.getApellidos() : ""))
+                        .append(" | <next> siguiente}\"];\n");
             }
             for (int i = 0; i < usuarios.size() - 1; i++) {
                 dot.append("  u").append(i).append(":next -> u").append(i + 1).append(";\n");
@@ -137,16 +137,16 @@ public class GraphvizService {
     }
 
     private void generarNodosArbol(List<Cliente> clientes, int inicio, int fin,
-                                    StringBuilder dot, String padre) {
+                                   StringBuilder dot, String padre) {
         if (inicio > fin) return;
         int medio = (inicio + fin) / 2;
         Cliente c = clientes.get(medio);
         String nodeId = "c" + medio;
         dot.append("  ").append(nodeId)
-           .append(" [label=\"{").append(escapar(c.getCui()))
-           .append(" | ").append(escapar(c.getNombre()))
-           .append(" ").append(escapar(c.getApellidos() != null ? c.getApellidos() : ""))
-           .append("}\"];\n");
+                .append(" [label=\"{").append(escapar(c.getCui()))
+                .append(" | ").append(escapar(c.getNombre()))
+                .append(" ").append(escapar(c.getApellidos() != null ? c.getApellidos() : ""))
+                .append("}\"];\n");
         if (padre != null) dot.append("  ").append(padre).append(" -> ").append(nodeId).append(";\n");
         generarNodosArbol(clientes, inicio, medio - 1, dot, nodeId);
         generarNodosArbol(clientes, medio + 1, fin,    dot, nodeId);
@@ -171,9 +171,9 @@ public class GraphvizService {
             for (int i = 0; i < pilotos.size(); i++) {
                 Piloto p = pilotos.get(i);
                 dot.append("  p").append(i)
-                   .append(" [label=\"{").append(escapar(p.getCui()))
-                   .append(" | ").append(escapar(p.getNombre()))
-                   .append(" | Lic: ").append(p.getLicencia()).append("}\"];\n");
+                        .append(" [label=\"{").append(escapar(p.getCui()))
+                        .append(" | ").append(escapar(p.getNombre()))
+                        .append(" | Lic: ").append(p.getLicencia()).append("}\"];\n");
             }
             dot.append("  frente -> p0;\n");
             for (int i = 0; i < pilotos.size() - 1; i++) {
@@ -205,9 +205,9 @@ public class GraphvizService {
             for (int i = 0; i < vehiculos.size(); i++) {
                 Vehiculo v = vehiculos.get(i);
                 dot.append("  v").append(i)
-                   .append(" [label=\"{").append(escapar(v.getPlaca()))
-                   .append(" | ").append(escapar(v.getMarca()))
-                   .append(" ").append(escapar(v.getModelo())).append("}\"];\n");
+                        .append(" [label=\"{").append(escapar(v.getPlaca()))
+                        .append(" | ").append(escapar(v.getMarca()))
+                        .append(" ").append(escapar(v.getModelo())).append("}\"];\n");
             }
             dot.append("  frente -> v0;\n");
             for (int i = 0; i < vehiculos.size() - 1; i++) {
