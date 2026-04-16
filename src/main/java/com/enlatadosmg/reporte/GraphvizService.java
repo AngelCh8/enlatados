@@ -238,11 +238,11 @@ public class GraphvizService {
                 PedidoDeEntrega p = pedidos.get(i);
                 String color = pedidoColor(p.getEstado());
                 dot.append("  p").append(i)
-                        .append(" [label=\"{Pedido ").append(p.getNumeroPedido())
+                        .append(" [label=\"{Pedido #").append(p.getNumeroPedido())
                         .append(" | ").append(escapar(p.getDepartamentoOrigen()))
-                        .append(" a ").append(escapar(p.getDepartamentoDestino()))
+                        .append(" -> ").append(escapar(p.getDepartamentoDestino()))
                         .append(" | ").append(p.getNumeroCajas()).append(" cajas")
-                        .append(" | ").append(p.getEstado())
+                        .append(" | Estado: ").append(p.getEstado())
                         .append(" | <next> sig}\", fillcolor=\"").append(color).append("\"];\n");
             }
             for (int i = 0; i < pedidos.size() - 1; i++) {
