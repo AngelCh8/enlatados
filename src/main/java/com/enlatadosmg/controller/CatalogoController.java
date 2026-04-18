@@ -16,21 +16,16 @@ public class CatalogoController {
         this.catalogoService = catalogoService;
     }
 
-    /**
-     * Body: { "codigoProducto":"PROD-001", "nombreProducto":"Atun",
-     *         "descripcion":"Atun en aceite", "pesoKgPorCaja":12.5,
-     *         "unidadesPorCaja":24, "precioUnitario":150.00 }
-     */
     @PostMapping
     public ResponseEntity<?> registrar(@RequestBody Map<String, Object> body) {
         try {
             CatalogoDeProductos prod = catalogoService.registrarProducto(
-                body.get("codigoProducto").toString(),
-                body.get("nombreProducto").toString(),
-                body.getOrDefault("descripcion", "").toString(),
-                Double.parseDouble(body.get("pesoKgPorCaja").toString()),
-                Integer.parseInt(body.get("unidadesPorCaja").toString()),
-                Double.parseDouble(body.getOrDefault("precioUnitario", "0").toString())
+                    body.get("codigoProducto").toString(),
+                    body.get("nombreProducto").toString(),
+                    body.getOrDefault("descripcion", "").toString(),
+                    Double.parseDouble(body.get("pesoKgPorCaja").toString()),
+                    Integer.parseInt(body.get("unidadesPorCaja").toString()),
+                    Double.parseDouble(body.getOrDefault("precioUnitario", "0").toString())
             );
             return ResponseEntity.ok(prod);
         } catch (Exception e) {
@@ -58,5 +53,19 @@ public class CatalogoController {
         CatalogoDeProductos p = catalogoService.buscarPorCodigo(codigo);
         if (p == null) return ResponseEntity.notFound().build();
         return ResponseEntity.ok(p);
+    }
+
+    /**
+     * Elimina un producto del catalogo.
+     * No se puede eliminar si tiene cajas en stock.
+     */
+    @DeleteMapping("/{codigo}")
+    public ResponseEntity<?> eliminar(@PathVariable String codigo) {
+        try {
+            catalogoService.eliminar(codigo);
+            return ResponseEntity.ok("Producto " + codigo + " eliminado del catalogo.");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 }

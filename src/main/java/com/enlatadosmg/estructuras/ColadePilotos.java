@@ -9,23 +9,18 @@ import java.util.List;
  * ESTRUCTURA: ColadePilotos
  * ============================================================
  * Lista enlazada que almacena TODOS los pilotos registrados.
- * Los pilotos NUNCA se eliminan — solo cambian de estado:
- *   LIBRE | OCUPADO | DE_VACACIONES
  *
  * Operaciones:
- *   registrar()        → agrega piloto al final
- *   asignarDisponible()→ busca el primer piloto LIBRE y lo marca OCUPADO
- *   liberarPiloto()    → marca el piloto como LIBRE al completar pedido
- *   cambiarEstado()    → cambia estado manualmente (ej: DE_VACACIONES)
- *   buscarPorCui()     → busca un piloto por su CUI
+ *   registrar()         → agrega piloto al final
+ *   asignarDisponible() → busca el primer piloto LIBRE y lo marca OCUPADO
+ *   liberarPiloto()     → marca el piloto como LIBRE al completar pedido
+ *   cambiarEstado()     → cambia estado manualmente
+ *   buscarPorCui()      → busca un piloto por su CUI
+ *   eliminar()          → elimina fisicamente un piloto de la lista
  * ============================================================
  */
 public class ColadePilotos {
 
-    /**
-     * TurnoDePiloto: nodo interno de la lista.
-     * Representa la posicion de un piloto en la lista de pilotos.
-     */
     private static class TurnoDePiloto {
         Piloto        piloto;
         TurnoDePiloto siguienteTurno;
@@ -46,10 +41,6 @@ public class ColadePilotos {
         this.totalPilotos = 0;
     }
 
-    /**
-     * Registrar: agrega un nuevo piloto al sistema.
-     * Todo piloto ingresa con estado LIBRE.
-     */
     public void registrar(Piloto piloto) {
         TurnoDePiloto nuevoTurno = new TurnoDePiloto(piloto);
         if (primero == null) {
@@ -62,17 +53,10 @@ public class ColadePilotos {
         totalPilotos++;
     }
 
-    /**
-     * Asignar disponible: busca el primer piloto con estado LIBRE
-     * y lo marca OCUPADO. El piloto NO se elimina de la lista.
-     * Reutiliza estaDisponible() de Piloto para la validacion.
-     *
-     * @return Piloto asignado, ahora en estado OCUPADO
-     */
     public Piloto asignarDisponible() {
         TurnoDePiloto actual = primero;
         while (actual != null) {
-            if (actual.piloto.estaDisponible()) {   // reutiliza metodo de Piloto
+            if (actual.piloto.estaDisponible()) {
                 actual.piloto.setEstado("OCUPADO");
                 return actual.piloto;
             }
@@ -81,11 +65,6 @@ public class ColadePilotos {
         throw new RuntimeException("No hay pilotos LIBRES disponibles en este momento");
     }
 
-    /**
-     * Liberar piloto: marca el piloto como LIBRE al completar o cancelar pedido.
-     * Busca al piloto por CUI para localizarlo en la lista.
-     * Reutiliza buscarPorCui() internamente.
-     */
     public void liberarPiloto(Piloto piloto) {
         Piloto encontrado = buscarPorCui(piloto.getCui());
         if (encontrado != null) {
@@ -93,12 +72,6 @@ public class ColadePilotos {
         }
     }
 
-    /**
-     * Cambiar estado manualmente (ej: poner DE_VACACIONES, LIBRE, etc.)
-     * @param cui    CUI del piloto
-     * @param estado nuevo estado
-     * @return true si se encontro y cambio, false si no existe
-     */
     public boolean cambiarEstado(String cui, String estado) {
         Piloto p = buscarPorCui(cui);
         if (p == null) return false;
@@ -106,7 +79,35 @@ public class ColadePilotos {
         return true;
     }
 
-    /** Busca un piloto por su CUI recorriendo la lista */
+    /**
+     * Elimina fisicamente un piloto de la lista enlazada por su CUI.
+     * @return true si se encontro y elimino, false si no existe
+     */
+    public boolean eliminar(String cui) {
+        if (primero == null) return false;
+
+        // Caso: el primero es el que se elimina
+        if (cui.equals(primero.piloto.getCui())) {
+            primero = primero.siguienteTurno;
+            if (primero == null) ultimo = null;
+            totalPilotos--;
+            return true;
+        }
+
+        // Buscar en el resto de la lista
+        TurnoDePiloto actual = primero;
+        while (actual.siguienteTurno != null) {
+            if (cui.equals(actual.siguienteTurno.piloto.getCui())) {
+                if (actual.siguienteTurno == ultimo) ultimo = actual;
+                actual.siguienteTurno = actual.siguienteTurno.siguienteTurno;
+                totalPilotos--;
+                return true;
+            }
+            actual = actual.siguienteTurno;
+        }
+        return false;
+    }
+
     public Piloto buscarPorCui(String cui) {
         TurnoDePiloto actual = primero;
         while (actual != null) {
@@ -116,7 +117,6 @@ public class ColadePilotos {
         return null;
     }
 
-    /** Retorna todos los pilotos (sin importar estado) */
     public List<Piloto> obtenerTodos() {
         List<Piloto> resultado = new ArrayList<>();
         TurnoDePiloto actual   = primero;
@@ -127,7 +127,6 @@ public class ColadePilotos {
         return resultado;
     }
 
-    /** Retorna cuantos pilotos estan en estado LIBRE */
     public int contarLibres() {
         int count = 0;
         TurnoDePiloto actual = primero;

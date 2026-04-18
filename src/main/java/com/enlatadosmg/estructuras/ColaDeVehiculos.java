@@ -9,23 +9,19 @@ import java.util.List;
  * ESTRUCTURA: ColaDeVehiculos
  * ============================================================
  * Lista enlazada que almacena TODOS los vehiculos registrados.
- * Los vehiculos NUNCA se eliminan — solo cambian de estado:
- *   LIBRE | OCUPADO | DESCOMPUESTO
+ * Los vehiculos pueden eliminarse fisicamente con eliminar().
  *
  * Operaciones:
  *   registrar()         → agrega vehiculo al final
  *   asignarDisponible() → busca el primer vehiculo LIBRE y lo marca OCUPADO
  *   liberarVehiculo()   → marca el vehiculo como LIBRE al completar pedido
- *   cambiarEstado()     → cambia estado manualmente (ej: DESCOMPUESTO)
+ *   cambiarEstado()     → cambia estado manualmente
  *   buscarPorPlaca()    → busca un vehiculo por su placa
+ *   eliminar()          → elimina fisicamente un vehiculo de la lista
  * ============================================================
  */
 public class ColaDeVehiculos {
 
-    /**
-     * TurnoDeVehiculo: nodo interno de la lista.
-     * Representa la posicion de un vehiculo en la lista.
-     */
     private static class TurnoDeVehiculo {
         Vehiculo        vehiculo;
         TurnoDeVehiculo siguienteTurno;
@@ -46,10 +42,6 @@ public class ColaDeVehiculos {
         this.totalVehiculos = 0;
     }
 
-    /**
-     * Registrar: agrega un vehiculo al sistema.
-     * Todo vehiculo ingresa con estado LIBRE.
-     */
     public void registrar(Vehiculo vehiculo) {
         TurnoDeVehiculo nuevoTurno = new TurnoDeVehiculo(vehiculo);
         if (primero == null) {
@@ -62,15 +54,10 @@ public class ColaDeVehiculos {
         totalVehiculos++;
     }
 
-    /**
-     * Asignar disponible: busca el primer vehiculo con estado LIBRE
-     * y lo marca OCUPADO. El vehiculo NO se elimina de la lista.
-     * Reutiliza estaDisponible() de Vehiculo.
-     */
     public Vehiculo asignarDisponible() {
         TurnoDeVehiculo actual = primero;
         while (actual != null) {
-            if (actual.vehiculo.estaDisponible()) {   // reutiliza metodo de Vehiculo
+            if (actual.vehiculo.estaDisponible()) {
                 actual.vehiculo.setEstado("OCUPADO");
                 return actual.vehiculo;
             }
@@ -79,10 +66,6 @@ public class ColaDeVehiculos {
         throw new RuntimeException("No hay vehiculos LIBRES disponibles en este momento");
     }
 
-    /**
-     * Liberar vehiculo: marca el vehiculo como LIBRE al completar o cancelar pedido.
-     * Reutiliza buscarPorPlaca() internamente.
-     */
     public void liberarVehiculo(Vehiculo vehiculo) {
         Vehiculo encontrado = buscarPorPlaca(vehiculo.getPlaca());
         if (encontrado != null) {
@@ -90,11 +73,6 @@ public class ColaDeVehiculos {
         }
     }
 
-    /**
-     * Cambiar estado manualmente.
-     * @param placa  Placa del vehiculo
-     * @param estado nuevo estado
-     */
     public boolean cambiarEstado(String placa, String estado) {
         Vehiculo v = buscarPorPlaca(placa);
         if (v == null) return false;
@@ -102,7 +80,35 @@ public class ColaDeVehiculos {
         return true;
     }
 
-    /** Busca un vehiculo por su placa recorriendo la lista */
+    /**
+     * Elimina fisicamente un vehiculo de la lista enlazada por su placa.
+     * @return true si se encontro y elimino, false si no existe
+     */
+    public boolean eliminar(String placa) {
+        if (primero == null) return false;
+
+        // Caso: el primero es el que se elimina
+        if (placa.equals(primero.vehiculo.getPlaca())) {
+            primero = primero.siguienteTurno;
+            if (primero == null) ultimo = null;
+            totalVehiculos--;
+            return true;
+        }
+
+        // Buscar en el resto de la lista
+        TurnoDeVehiculo actual = primero;
+        while (actual.siguienteTurno != null) {
+            if (placa.equals(actual.siguienteTurno.vehiculo.getPlaca())) {
+                if (actual.siguienteTurno == ultimo) ultimo = actual;
+                actual.siguienteTurno = actual.siguienteTurno.siguienteTurno;
+                totalVehiculos--;
+                return true;
+            }
+            actual = actual.siguienteTurno;
+        }
+        return false;
+    }
+
     public Vehiculo buscarPorPlaca(String placa) {
         TurnoDeVehiculo actual = primero;
         while (actual != null) {
@@ -112,7 +118,6 @@ public class ColaDeVehiculos {
         return null;
     }
 
-    /** Retorna todos los vehiculos (sin importar estado) */
     public List<Vehiculo> obtenerTodos() {
         List<Vehiculo> resultado = new ArrayList<>();
         TurnoDeVehiculo actual   = primero;

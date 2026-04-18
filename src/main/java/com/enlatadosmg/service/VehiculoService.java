@@ -20,7 +20,7 @@ public class VehiculoService {
 
         if (dataStore.getColaDeVehiculos().buscarPorPlaca(v.getPlaca()) != null)
             throw new RuntimeException("Ya existe un vehiculo registrado con la placa '"
-                + v.getPlaca() + "'. Verifica la placa o registra una diferente.");
+                    + v.getPlaca() + "'. Verifica la placa o registra una diferente.");
 
         if (v.getEstado() == null || v.getEstado().isBlank()) v.setEstado("LIBRE");
         dataStore.getColaDeVehiculos().registrar(v);
@@ -29,8 +29,8 @@ public class VehiculoService {
 
     /** Edita datos de un vehiculo */
     public Vehiculo editar(String placa, String marca, String modelo,
-                            String color, Integer anio, String transmision,
-                            Integer capacidad) {
+                           String color, Integer anio, String transmision,
+                           Integer capacidad) {
         Vehiculo v = dataStore.getColaDeVehiculos().buscarPorPlaca(placa);
         if (v == null)
             throw new RuntimeException("No existe ningun vehiculo con la placa: " + placa);
@@ -51,14 +51,37 @@ public class VehiculoService {
 
     public void liberar(Vehiculo v) { dataStore.getColaDeVehiculos().liberarVehiculo(v); }
 
+    /**
+     * Cambia el estado de un vehiculo.
+     * CORREGIDO: Solo bloquea si el vehiculo tiene cajas fisicas activas (cajasOcupadas > 0).
+     * Si cajasOcupadas == 0, permite el cambio aunque el estado sea OCUPADO
+     * para evitar vehiculos huerfanos sin pedido real.
+     */
     public boolean cambiarEstado(String placa, String estado) {
         Vehiculo v = dataStore.getColaDeVehiculos().buscarPorPlaca(placa);
         if (v == null)
             throw new RuntimeException("No existe ningun vehiculo con la placa: " + placa);
-        if (v.getEstado().equals("OCUPADO") && !"OCUPADO".equals(estado))
+
+        if ("OCUPADO".equals(v.getEstado()) && v.getCajasOcupadas() > 0 && !"OCUPADO".equals(estado))
             throw new RuntimeException("El vehiculo " + placa
-                + " esta OCUPADO con un pedido activo. Completa o cancela el pedido primero.");
+                    + " tiene " + v.getCajasOcupadas() + " cajas activas. "
+                    + "Completa o cancela el pedido primero.");
+
         return dataStore.getColaDeVehiculos().cambiarEstado(placa, estado);
+    }
+
+    /**
+     * Elimina un vehiculo del sistema.
+     * No permite eliminar si tiene cajas activas (cajasOcupadas > 0).
+     */
+    public void eliminar(String placa) {
+        Vehiculo v = dataStore.getColaDeVehiculos().buscarPorPlaca(placa);
+        if (v == null)
+            throw new RuntimeException("No existe ningun vehiculo con la placa: " + placa);
+        if (v.getCajasOcupadas() > 0)
+            throw new RuntimeException("El vehiculo " + placa
+                    + " tiene cajas activas. Completa o cancela el pedido antes de eliminarlo.");
+        dataStore.getColaDeVehiculos().eliminar(placa);
     }
 
     public Vehiculo buscarPorPlaca(String placa)  { return dataStore.getColaDeVehiculos().buscarPorPlaca(placa); }

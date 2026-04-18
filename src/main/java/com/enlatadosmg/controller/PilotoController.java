@@ -33,18 +33,18 @@ public class PilotoController {
     @GetMapping("/disponibles")
     public ResponseEntity<Map<String, Integer>> disponibles() {
         return ResponseEntity.ok(Map.of(
-            "libres", pilotoService.getCantidadLibres(),
-            "total",  pilotoService.getCantidad()
+                "libres", pilotoService.getCantidadLibres(),
+                "total",  pilotoService.getCantidad()
         ));
     }
 
     @PutMapping("/{cui}")
     public ResponseEntity<?> editar(@PathVariable String cui,
-                                     @RequestBody Map<String, String> body) {
+                                    @RequestBody Map<String, String> body) {
         try {
             Piloto p = pilotoService.editar(
-                cui, body.get("nombre"), body.get("apellidos"),
-                body.get("licencia"), body.get("telefono")
+                    cui, body.get("nombre"), body.get("apellidos"),
+                    body.get("licencia"), body.get("telefono")
             );
             return ResponseEntity.ok(p);
         } catch (Exception e) {
@@ -52,12 +52,30 @@ public class PilotoController {
         }
     }
 
+    /**
+     * Cambia el estado de un piloto (LIBRE, OCUPADO, DE_VACACIONES).
+     * CORREGIDO: Solo bloquea si tiene pedido activo real.
+     */
     @PatchMapping("/{cui}/estado")
     public ResponseEntity<?> cambiarEstado(@PathVariable String cui,
-                                            @RequestBody Map<String, String> body) {
+                                           @RequestBody Map<String, String> body) {
         try {
             pilotoService.cambiarEstado(cui, body.get("estado"));
             return ResponseEntity.ok("Estado del piloto actualizado a: " + body.get("estado"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * Elimina un piloto del sistema.
+     * No se puede eliminar si tiene un pedido activo.
+     */
+    @DeleteMapping("/{cui}")
+    public ResponseEntity<?> eliminar(@PathVariable String cui) {
+        try {
+            pilotoService.eliminar(cui);
+            return ResponseEntity.ok("Piloto " + cui + " eliminado correctamente.");
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
