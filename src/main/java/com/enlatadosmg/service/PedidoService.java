@@ -27,86 +27,112 @@ public class PedidoService {
 
     /**
      * Crea un pedido con MULTIPLES productos.
-     * lineas: [ { "codigoProducto": "PROD-001", "cantidadCajas": 10 }, ... ]
      *
-     * Logica de asignacion de camion:
-     * 1. Busca un camion OCUPADO con el mismo destino que todavia tenga espacio.
-     * 2. Si existe, se une al camion (mismo piloto/vehiculo).
-     * 3. Si no, asigna un camion LIBRE nuevo.
-     * 4. Si el pedido supera la capacidad, lo divide en multiples pedidos.
+     * CORREGIDO: Ahora valida que haya vehiculo Y piloto disponibles ANTES
+     * de marcar cualquier recurso como OCUPADO. Si falta alguno, lanza error
+     * sin dejar ningun recurso huerfano.
      *
-     * @return Lista de pedidos creados (puede ser mas de uno si se divide)
+     * Logica de asignacion:
+     * 1. Valida cliente, productos y stock.
+     * 2. Verifica disponibilidad de vehiculo y piloto SIN asignarlos todavia.
+     * 3. Solo si todo esta bien, asigna ambos y marca OCUPADO.
      */
     public List<PedidoDeEntrega> crearPedidoMultiProducto(String cuiCliente,
-                                                           String deptoOrigen,
-                                                           String deptoDestino,
-                                                           List<Map<String, Object>> lineas) {
-        // Validar cliente
+                                                          String deptoOrigen,
+                                                          String deptoDestino,
+                                                          List<Map<String, Object>> lineas) {
+        // ── 1. Validar cliente ───────────────────────────────────────────────
         Cliente cliente = clienteService.buscarPorCui(cuiCliente);
         if (cliente == null)
             throw new RuntimeException("Cliente no encontrado con CUI: " + cuiCliente);
 
-        // Construir lineas validadas y calcular total de cajas
+        // ── 2. Validar productos y stock ─────────────────────────────────────
         List<LineaDePedido> lineasValidadas = new ArrayList<>();
         int totalCajasSolicitadas = 0;
 
         for (Map<String, Object> item : lineas) {
-            String codigoProd   = item.get("codigoProducto").toString();
-            int    cantCajas    = Integer.parseInt(item.get("cantidadCajas").toString());
+            String codigoProd = item.get("codigoProducto").toString();
+            int    cantCajas  = Integer.parseInt(item.get("cantidadCajas").toString());
 
             CatalogoDeProductos catalogo = catalogoService.buscarPorCodigo(codigoProd);
             if (catalogo == null)
                 throw new RuntimeException("Producto no encontrado en catalogo: " + codigoProd);
             if (catalogo.getCajasEnStock() < cantCajas)
                 throw new RuntimeException("Stock insuficiente de " + catalogo.getNombreProducto()
-                    + ". Disponibles: " + catalogo.getCajasEnStock() + ", solicitadas: " + cantCajas);
+                        + ". Disponibles: " + catalogo.getCajasEnStock() + ", solicitadas: " + cantCajas);
 
             lineasValidadas.add(new LineaDePedido(
-                codigoProd, catalogo.getNombreProducto(),
-                cantCajas, catalogo.getPrecioUnitario()
+                    codigoProd, catalogo.getNombreProducto(),
+                    cantCajas, catalogo.getPrecioUnitario()
             ));
             totalCajasSolicitadas += cantCajas;
         }
 
+        // ── 3. Verificar disponibilidad ANTES de asignar nada ────────────────
+        // Si no hay camion compartible, debe haber al menos 1 vehiculo y 1 piloto libres.
+        Vehiculo camionCompartible = buscarCamionCompartible(deptoDestino);
+        if (camionCompartible == null) {
+            if (vehiculoService.getCantidadLibres() == 0)
+                throw new RuntimeException(
+                        "No hay vehiculos LIBRES disponibles. Registra o libera un vehiculo antes de crear el pedido.");
+            if (pilotoService.getCantidadLibres() == 0)
+                throw new RuntimeException(
+                        "No hay pilotos LIBRES disponibles. Registra o libera un piloto antes de crear el pedido.");
+        }
+
+        // ── 4. Todo validado — proceder con la asignacion ───────────────────
         List<PedidoDeEntrega> pedidosCreados = new ArrayList<>();
         int cajasRestantes = totalCajasSolicitadas;
         int lineaIdx = 0;
 
-        // Distribuir en camiones
         while (cajasRestantes > 0) {
-            // Buscar camion ocupado con mismo destino que tenga espacio
             Vehiculo vehiculo = buscarCamionCompartible(deptoDestino);
             Piloto   piloto;
 
             if (vehiculo != null) {
-                // Compartir camion existente — buscar su piloto en el pedido activo
+                // Compartir camion existente con su piloto
                 piloto = buscarPilotoDelCamion(vehiculo);
             } else {
-                // Asignar camion nuevo
+                // Verificar nuevamente en cada iteracion (por si el loop divide pedidos)
+                if (vehiculoService.getCantidadLibres() == 0)
+                    throw new RuntimeException(
+                            "No hay mas vehiculos LIBRES para continuar distribuyendo el pedido.");
+                if (pilotoService.getCantidadLibres() == 0)
+                    throw new RuntimeException(
+                            "No hay mas pilotos LIBRES para continuar distribuyendo el pedido.");
+
+                // Asignar ambos recursos juntos — si uno falla, el otro no se toca
                 vehiculo = vehiculoService.asignar();
-                piloto   = pilotoService.asignar();
+                try {
+                    piloto = pilotoService.asignar();
+                } catch (RuntimeException e) {
+                    // Revertir vehiculo si el piloto falla
+                    vehiculo.setEstado("LIBRE");
+                    vehiculo.setCajasOcupadas(0);
+                    throw new RuntimeException(
+                            "No se pudo asignar piloto. El vehiculo fue liberado. Detalle: " + e.getMessage());
+                }
             }
 
             int espacioDisponible = vehiculo.getEspacioDisponible();
             int cajasEnEstePedido = Math.min(cajasRestantes, espacioDisponible);
 
             PedidoDeEntrega pedido = new PedidoDeEntrega(
-                dataStore.siguienteNumeroPedido(), deptoOrigen, deptoDestino, cliente, piloto, vehiculo
+                    dataStore.siguienteNumeroPedido(), deptoOrigen, deptoDestino, cliente, piloto, vehiculo
             );
 
             // Asignar lineas proporcionales a este pedido
             int cajasAsignadasEnPedido = 0;
             while (cajasAsignadasEnPedido < cajasEnEstePedido && lineaIdx < lineasValidadas.size()) {
-                LineaDePedido linea     = lineasValidadas.get(lineaIdx);
-                int disponibleEnPedido  = cajasEnEstePedido - cajasAsignadasEnPedido;
-                int aAsignar            = Math.min(linea.getCantidadCajas(), disponibleEnPedido);
+                LineaDePedido linea    = lineasValidadas.get(lineaIdx);
+                int disponibleEnPedido = cajasEnEstePedido - cajasAsignadasEnPedido;
+                int aAsignar           = Math.min(linea.getCantidadCajas(), disponibleEnPedido);
 
-                // Retirar cajas fisicas del almacen
                 List<CajaDeProductos> cajasRetiradas =
-                    almacenService.retirarCajasPorProducto(linea.getCodigoProducto(), aAsignar);
+                        almacenService.retirarCajasPorProducto(linea.getCodigoProducto(), aAsignar);
                 pedido.agregarLinea(new LineaDePedido(
-                    linea.getCodigoProducto(), linea.getNombreProducto(),
-                    aAsignar, linea.getPrecioUnitario()
+                        linea.getCodigoProducto(), linea.getNombreProducto(),
+                        aAsignar, linea.getPrecioUnitario()
                 ));
                 pedido.agregarCajas(cajasRetiradas);
                 cajasAsignadasEnPedido += aAsignar;
@@ -114,18 +140,16 @@ public class PedidoService {
                 if (aAsignar == linea.getCantidadCajas()) {
                     lineaIdx++;
                 } else {
-                    // linea parcialmente asignada — actualizar cantidad restante
                     lineasValidadas.set(lineaIdx, new LineaDePedido(
-                        linea.getCodigoProducto(), linea.getNombreProducto(),
-                        linea.getCantidadCajas() - aAsignar, linea.getPrecioUnitario()
+                            linea.getCodigoProducto(), linea.getNombreProducto(),
+                            linea.getCantidadCajas() - aAsignar, linea.getPrecioUnitario()
                     ));
                 }
             }
 
-            // Actualizar ocupacion del vehiculo
+            // Marcar vehiculo como OCUPADO solo cuando ya tiene cajas reales
             vehiculo.ocuparEspacio(cajasAsignadasEnPedido);
-            if (vehiculo.getEspacioDisponible() == 0) vehiculo.setEstado("OCUPADO");
-            else vehiculo.setEstado("OCUPADO"); // sigue ocupado aunque tenga espacio
+            vehiculo.setEstado("OCUPADO");
 
             dataStore.getListaDePedidos().agregar(pedido);
             pedidosCreados.add(pedido);
@@ -137,7 +161,6 @@ public class PedidoService {
 
     /**
      * Busca un vehiculo OCUPADO que vaya al mismo destino y tenga espacio libre.
-     * Permite "llenar el camion" con pedidos al mismo destino.
      */
     private Vehiculo buscarCamionCompartible(String destino) {
         List<PedidoDeEntrega> pedidos = dataStore.getListaDePedidos().obtenerTodos();
@@ -156,21 +179,23 @@ public class PedidoService {
     private Piloto buscarPilotoDelCamion(Vehiculo vehiculo) {
         List<PedidoDeEntrega> pedidos = dataStore.getListaDePedidos().obtenerTodos();
         for (PedidoDeEntrega p : pedidos) {
-            if (p.getVehiculo() != null && p.getVehiculo().getPlaca().equals(vehiculo.getPlaca())) {
+            if (p.getVehiculo() != null
+                    && p.getVehiculo().getPlaca().equals(vehiculo.getPlaca())) {
                 return p.getPiloto();
             }
         }
+        // fallback — no deberia llegar aqui si buscarCamionCompartible funciona bien
         return pilotoService.asignar();
     }
 
     /**
      * Cambia el estado de un pedido.
-     * Al COMPLETAR o CANCELAR: libera piloto y reduce cajas ocupadas del vehiculo.
-     * Si el vehiculo ya no tiene cajas, queda LIBRE.
+     * Al COMPLETAR o CANCELAR libera piloto y reduce cajas del vehiculo.
+     * Si el vehiculo queda sin cajas, pasa a LIBRE automaticamente.
      */
     public PedidoDeEntrega cambiarEstado(int numeroPedido, String nuevoEstado, String observaciones) {
         PedidoDeEntrega pedido = dataStore.getListaDePedidos()
-            .buscar(p -> p.getNumeroPedido() == numeroPedido);
+                .buscar(p -> p.getNumeroPedido() == numeroPedido);
         if (pedido == null)
             throw new RuntimeException("Pedido no encontrado: " + numeroPedido);
 
@@ -184,7 +209,6 @@ public class PedidoService {
 
         if ("COMPLETADO".equals(nuevoEstado) || "CANCELADO".equals(nuevoEstado)) {
             pilotoService.liberar(pedido.getPiloto());
-            // Liberar espacio del vehiculo
             Vehiculo v = pedido.getVehiculo();
             if (v != null) {
                 v.liberarEspacio(pedido.getTotalCajas());
@@ -194,6 +218,6 @@ public class PedidoService {
         return pedido;
     }
 
-    public List<PedidoDeEntrega> obtenerTodos()         { return dataStore.getListaDePedidos().obtenerTodos(); }
-    public PedidoDeEntrega buscarPorNumero(int numero)  { return dataStore.getListaDePedidos().buscar(p -> p.getNumeroPedido() == numero); }
+    public List<PedidoDeEntrega> obtenerTodos()        { return dataStore.getListaDePedidos().obtenerTodos(); }
+    public PedidoDeEntrega buscarPorNumero(int numero) { return dataStore.getListaDePedidos().buscar(p -> p.getNumeroPedido() == numero); }
 }
