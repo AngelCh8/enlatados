@@ -27,15 +27,7 @@ public class PedidoService {
 
     /**
      * Crea un pedido con MULTIPLES productos.
-     *
-     * CORREGIDO: Ahora valida que haya vehiculo Y piloto disponibles ANTES
-     * de marcar cualquier recurso como OCUPADO. Si falta alguno, lanza error
-     * sin dejar ningun recurso huerfano.
-     *
-     * Logica de asignacion:
-     * 1. Valida cliente, productos y stock.
-     * 2. Verifica disponibilidad de vehiculo y piloto SIN asignarlos todavia.
-     * 3. Solo si todo esta bien, asigna ambos y marca OCUPADO.
+     * Valida vehiculo Y piloto ANTES de marcar nada como OCUPADO.
      */
     public List<PedidoDeEntrega> crearPedidoMultiProducto(String cuiCliente,
                                                           String deptoOrigen,
@@ -69,7 +61,6 @@ public class PedidoService {
         }
 
         // ── 3. Verificar disponibilidad ANTES de asignar nada ────────────────
-        // Si no hay camion compartible, debe haber al menos 1 vehiculo y 1 piloto libres.
         Vehiculo camionCompartible = buscarCamionCompartible(deptoDestino);
         if (camionCompartible == null) {
             if (vehiculoService.getCantidadLibres() == 0)
@@ -80,7 +71,7 @@ public class PedidoService {
                         "No hay pilotos LIBRES disponibles. Registra o libera un piloto antes de crear el pedido.");
         }
 
-        // ── 4. Todo validado — proceder con la asignacion ───────────────────
+        // ── 4. Todo validado — proceder ──────────────────────────────────────
         List<PedidoDeEntrega> pedidosCreados = new ArrayList<>();
         int cajasRestantes = totalCajasSolicitadas;
         int lineaIdx = 0;
@@ -90,23 +81,17 @@ public class PedidoService {
             Piloto   piloto;
 
             if (vehiculo != null) {
-                // Compartir camion existente con su piloto
                 piloto = buscarPilotoDelCamion(vehiculo);
             } else {
-                // Verificar nuevamente en cada iteracion (por si el loop divide pedidos)
                 if (vehiculoService.getCantidadLibres() == 0)
-                    throw new RuntimeException(
-                            "No hay mas vehiculos LIBRES para continuar distribuyendo el pedido.");
+                    throw new RuntimeException("No hay mas vehiculos LIBRES para distribuir el pedido.");
                 if (pilotoService.getCantidadLibres() == 0)
-                    throw new RuntimeException(
-                            "No hay mas pilotos LIBRES para continuar distribuyendo el pedido.");
+                    throw new RuntimeException("No hay mas pilotos LIBRES para distribuir el pedido.");
 
-                // Asignar ambos recursos juntos — si uno falla, el otro no se toca
                 vehiculo = vehiculoService.asignar();
                 try {
                     piloto = pilotoService.asignar();
                 } catch (RuntimeException e) {
-                    // Revertir vehiculo si el piloto falla
                     vehiculo.setEstado("LIBRE");
                     vehiculo.setCajasOcupadas(0);
                     throw new RuntimeException(
@@ -121,7 +106,6 @@ public class PedidoService {
                     dataStore.siguienteNumeroPedido(), deptoOrigen, deptoDestino, cliente, piloto, vehiculo
             );
 
-            // Asignar lineas proporcionales a este pedido
             int cajasAsignadasEnPedido = 0;
             while (cajasAsignadasEnPedido < cajasEnEstePedido && lineaIdx < lineasValidadas.size()) {
                 LineaDePedido linea    = lineasValidadas.get(lineaIdx);
@@ -147,7 +131,6 @@ public class PedidoService {
                 }
             }
 
-            // Marcar vehiculo como OCUPADO solo cuando ya tiene cajas reales
             vehiculo.ocuparEspacio(cajasAsignadasEnPedido);
             vehiculo.setEstado("OCUPADO");
 
@@ -159,9 +142,6 @@ public class PedidoService {
         return pedidosCreados;
     }
 
-    /**
-     * Busca un vehiculo OCUPADO que vaya al mismo destino y tenga espacio libre.
-     */
     private Vehiculo buscarCamionCompartible(String destino) {
         List<PedidoDeEntrega> pedidos = dataStore.getListaDePedidos().obtenerTodos();
         for (PedidoDeEntrega p : pedidos) {
@@ -175,7 +155,6 @@ public class PedidoService {
         return null;
     }
 
-    /** Busca el piloto asociado a un vehiculo en pedidos activos */
     private Piloto buscarPilotoDelCamion(Vehiculo vehiculo) {
         List<PedidoDeEntrega> pedidos = dataStore.getListaDePedidos().obtenerTodos();
         for (PedidoDeEntrega p : pedidos) {
@@ -184,14 +163,15 @@ public class PedidoService {
                 return p.getPiloto();
             }
         }
-        // fallback — no deberia llegar aqui si buscarCamionCompartible funciona bien
         return pilotoService.asignar();
     }
 
     /**
      * Cambia el estado de un pedido.
-     * Al COMPLETAR o CANCELAR libera piloto y reduce cajas del vehiculo.
-     * Si el vehiculo queda sin cajas, pasa a LIBRE automaticamente.
+     *
+     * CORREGIDO:
+     * - CANCELADO → devuelve las cajas al almacen + suma stock + libera vehiculo y piloto
+     * - COMPLETADO → solo libera vehiculo y piloto (cajas ya fueron entregadas)
      */
     public PedidoDeEntrega cambiarEstado(int numeroPedido, String nuevoEstado, String observaciones) {
         PedidoDeEntrega pedido = dataStore.getListaDePedidos()
@@ -208,14 +188,50 @@ public class PedidoService {
             pedido.setObservaciones(observaciones);
 
         if ("COMPLETADO".equals(nuevoEstado) || "CANCELADO".equals(nuevoEstado)) {
+
+            // Liberar piloto
             pilotoService.liberar(pedido.getPiloto());
+
+            // Liberar vehiculo
             Vehiculo v = pedido.getVehiculo();
             if (v != null) {
                 v.liberarEspacio(pedido.getTotalCajas());
                 if (v.getCajasOcupadas() == 0) v.setEstado("LIBRE");
             }
+
+            // Solo al CANCELAR: devolver cajas al almacen
+            // Al COMPLETAR las cajas ya fueron entregadas al cliente
+            if ("CANCELADO".equals(nuevoEstado)) {
+                devolverCajasAlAlmacen(pedido);
+            }
         }
+
         return pedido;
+    }
+
+    /**
+     * Devuelve las cajas de un pedido CANCELADO al almacen.
+     * Las agrupa por producto y las reingresa en zona "D" (devoluciones).
+     * Tambien suma el stock en el catalogo automaticamente.
+     */
+    private void devolverCajasAlAlmacen(PedidoDeEntrega pedido) {
+        Map<String, Integer> cajasPorProducto = new LinkedHashMap<>();
+        for (CajaDeProductos caja : pedido.getCajasAsignadas()) {
+            cajasPorProducto.merge(caja.getCodigoProducto(), caja.getCantidadCajas(), Integer::sum);
+        }
+
+        for (Map.Entry<String, Integer> entry : cajasPorProducto.entrySet()) {
+            String codigoProducto = entry.getKey();
+            int    cantidad       = entry.getValue();
+            try {
+                // Reingresar a zona D (devoluciones), pasillo 1, estante 1, nivel 1
+                almacenService.ingresarCajas(codigoProducto, cantidad, "D", 1, 1, 1);
+            } catch (Exception e) {
+                // Si falla el reingreso fisico, al menos actualiza el stock del catalogo
+                CatalogoDeProductos catalogo = catalogoService.buscarPorCodigo(codigoProducto);
+                if (catalogo != null) catalogo.sumarCajas(cantidad);
+            }
+        }
     }
 
     public List<PedidoDeEntrega> obtenerTodos()        { return dataStore.getListaDePedidos().obtenerTodos(); }
